@@ -1,4 +1,4 @@
-# AIVehicleExtension for Farming Simulator 2019
+# AIVehicleExtension for Farming Simulator 2025
 
 ## Developer version
 Please be aware you're using a developer version, which may and will contain errors, bugs, mistakes and unfinished code. 
