@@ -6,7 +6,9 @@
 
 **Актуальная версия: 2.6.0.1 · Неофициальная адаптация AIVE от Mogli для FS25.**
 
-[Скачать мод](FS25_AIVehicleExtension.zip?raw=true) · [Исходники FS25](FS25_AIVehicleExtension/) · [Оригинальный проект](https://github.com/Mogli12/AIVehicleExtension) · [Лицензия GPL](LICENSE.txt)
+[Скачать мод](https://github.com/HeboRGger/AIVehicleExtension/releases/latest/download/FS25_AIVehicleExtension.zip) · [Релизы](https://github.com/HeboRGger/AIVehicleExtension/releases/latest) · [Исходники FS25](FS25_AIVehicleExtension/) · [Оригинальный проект](https://github.com/Mogli12/AIVehicleExtension) · [Лицензия GPL](LICENSE.txt)
+
+**Для установки в игру скачивайте файл `FS25_AIVehicleExtension.zip` из Releases. Пункты `Source code` и `Code → Download ZIP` скачивают исходники репозитория.**
 
 AIVE расширяет возможности полевого помощника: работа по неровной кромке, круговой режим с загонками, совместная обработка поля до четырёх машин и запуск задания через штатное меню карты «Дать работу». В этой ветке находятся только текущая сборка и исходники для **Farming Simulator 25**.
 
@@ -61,7 +63,7 @@ AIVE расширяет возможности полевого помощник
 
 ## Установка
 
-1. Скачайте **[FS25_AIVehicleExtension.zip](FS25_AIVehicleExtension.zip?raw=true)**. Кнопка GitHub **Code → Download ZIP** скачивает весь репозиторий и не даёт готовый установочный мод.
+1. Скачайте **[FS25_AIVehicleExtension.zip](https://github.com/HeboRGger/AIVehicleExtension/releases/latest/download/FS25_AIVehicleExtension.zip)**. Кнопка GitHub **Code → Download ZIP** скачивает весь репозиторий и не даёт готовый установочный мод.
 2. Поместите файл **без распаковки** в `Документы/My Games/FarmingSimulator2025/mods`.
 3. Уберите из mods предыдущую копию AIVE, чтобы игра не загрузила две версии одновременно.
 4. Включите AI Vehicle Extension в списке модов нужного сохранения.
