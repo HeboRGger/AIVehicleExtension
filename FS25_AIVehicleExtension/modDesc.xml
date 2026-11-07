@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="105">
+	<author>Mogli / Adapted for FS25</author>
+    <version>2.6.0.1</version>
+	<l10n filenamePrefix="modDesc_l10n">
+		<text name="AIVE_VERSION">
+			<en>AI Vehicle Extension v2.6.0.1 (FS25)</en>
+			<de>AI Vehicle Extension v2.6.0.1 (FS25)</de>
+			<ru>AI Vehicle Extension v2.6.0.1 (FS25)</ru>
+		</text>
+
+	</l10n>
+	<title>
+		<en>AI Vehicle Extension</en>
+		<de>AI Vehicle Extension</de>
+		<ru>AI Vehicle Extension</ru>
+		<cs>车辆助手</cs>
+	</title>
+	<description>
+		<en><![CDATA[
+AIVehicleExtension contains an alternative hired worker adapted for Farming Simulator 25 that can work on fields with irregular edges. It has additional features like circular (grinding) mode, headland support, automatic steering, and full compatibility with FS25 wheel physics.
+
+Here are the most important input bindings:
+* H: Start/stop the selected worker or native steering assist
+* Left Ctrl + H: Open the AIVE settings & HUD panel
+* Left Alt + H / Left Shift + H: Show/hide the AIVE head-up display (HUD)
+* Left Alt + 7: Toggle AIVE edge steering
+* Left Alt + P: Pause/resume the AIVE worker
+* Left Alt + V: Raise or lower all tools
+* Left Alt + 5: Toggle circular / up-and-down mode
+* Left Alt + 6: Swap active side
+]]></en>
+		<de><![CDATA[
+AIVehicleExtension beinhaltet einen alternativen Helfer für den Landwirtschafts-Simulator 25, der auch Felder mit unregelmäßigen Kanten bearbeiten kann. Darüber hinaus bietet er weitere Möglichkeiten wie Kreisfahrt, Vorgewende, automatische Lenkung und volle Kompatibilität mit der FS25-Reifenphysik.
+
+Hier ist die Tastaturbelegung:
+* H: Gewählten Helfer oder die Standard-Lenkhilfe starten/stoppen
+* Left Ctrl + H: AIVE-Einstellungen & HUD öffnen
+* Left Alt + H / Left Shift + H: AIVE-HUD ein-/ausblenden
+* Left Alt + 7: AIVE-Lenkhilfe
+* Left Alt + P: AIVE-Helfer pausieren/fortsetzen
+* Left Alt + V: Alle Geräte heben oder senken
+* Left Alt + 5: AI Vehicle-Modus wechseln
+* Left Alt + 6: Aktive Seite wechseln
+]]></de>
+		<ru><![CDATA[
+Модификация AI Vehicle Extension (адаптированная под Farming Simulator 25) содержит альтернативного наёмного работника для полей со сложными и неровными краями. Включает круговой режим (по периметру поля), обработку разворотной полосы, автоподруливание, поддержку новой физики колёс FS25 и панель настроек в HUD.
+
+Основные горячие клавиши:
+* H: Включить/выключить выбранного помощника или ванильную помощь в рулении
+* Левый Ctrl + H: Открыть панель настроек и HUD AIVE
+* Левый Alt + H / Левый Shift + H: Показать/скрыть панель HUD AIVE
+* Левый Alt + 7: Автоподруливание AIVE по кромке (вкл/выкл)
+* Левый Alt + P: Приостановить/продолжить работу помощника AIVE
+* Левый Alt + V: Поднять или опустить всё оборудование
+* Левый Alt + 5: Изменить режим (по периметру / челночный)
+* Левый Alt + 6: Изменить рабочую сторону (левая / правая)
+]]></ru>
+		<fr><![CDATA[
+AIVehicleExtension adapté pour Farming Simulator 25 contient un ouvrier alternatif capable de travailler des champs aux bords irréguliers (mode circulaire, fourrières, autoguidage).
+]]></fr>
+		<es><![CDATA[
+AIVehicleExtension adaptado para Farming Simulator 25 incluye un ayudante alternativo para campos irregulares, modo circular, cabeceras y autoguiado.
+]]></es>
+		<it><![CDATA[
+AIVehicleExtension adattato per Farming Simulator 25 contiene un aiutante alternativo che può lavorare su campi con bordi irregolari, modalità circolare e testata di campo.
+]]></it>
+		<pl><![CDATA[
+AIVehicleExtension dostosowany do Farming Simulator 25 zawiera alternatywnego pomocnika do pracy na polach o nieregularnych krawędziach, tryb jazdy na около oraz uwrocia.
+]]></pl>
+	</description>
+	<iconFilename>dds/icon_fs19.dds</iconFilename>
+	<multiplayer supported="true"/>
+
+	<extraSourceFiles>
+		<sourceFile filename="register.lua"/>
+	</extraSourceFiles>
+
+	<actions>
+		<action name="AIVE_HELPPANEL"    category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_STEER"        category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_SWAP_SIDE"    category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_ENABLE"       category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_UTURN_ON_OFF" category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_STEERING"     category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_PAUSE"        category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_RAISE"        category="VEHICLE" axisType="HALF"/>
+		<action name="AIVE_START_AIVE"   category="VEHICLE" axisType="HALF"/>
+	</actions>
+
+	<inputBinding>
+		<actionBinding action="AIVE_START_AIVE">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_h" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_HELPPANEL">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_h" axisComponent="+" inputComponent="+" index="1"/>
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lshift KEY_h" axisComponent="+" inputComponent="+" index="2"/>
+		</actionBinding>
+		<actionBinding action="AIVE_STEER">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_7" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_SWAP_SIDE">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_6" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_ENABLE">
+			<binding device="KB_MOUSE_DEFAULT" input="" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_UTURN_ON_OFF">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_5" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_STEERING">
+			<binding device="KB_MOUSE_DEFAULT" input="" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_PAUSE">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_p" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+		<actionBinding action="AIVE_RAISE">
+			<binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_v" axisComponent="+" inputComponent="+" index="1"/>
+		</actionBinding>
+	</inputBinding>
+</modDesc>

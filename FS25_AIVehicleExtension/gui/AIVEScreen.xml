@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<GUI onOpen="onOpen" onClose="onClose" onCreate="onCreate">
+	<GuiElement type="empty" profile="newLayer" />
+	<GuiElement type="bitmap" profile="dialogFullscreenBg" />
+	<GuiElement type="bitmap" profile="bgVignette"/>
+	<GuiElement type="bitmap" profile="bgGlowDialog" />
+
+	<GuiElement type="empty" profile="uiInGameMenuFrame">
+        <!-- Static page header -->
+		<GuiElement type="empty" profile="ingameMenuFrameHeaderPanel">
+			<GuiElement type="bitmap" profile="ingameMenuGeneralSettingsHeaderIcon" />
+			<GuiElement type="text" profile="ingameMenuFrameHeaderText" text="AI Vehicle Extension"/>
+		</GuiElement>
+		
+		<!-- Layouted settings box -->
+		<GuiElement type="bitmap" profile="mainMenuSettingsBox" id="settingsContainer">		<GuiElement type="bitmap" profile="topScrollClipper" name="topClipper" />
+			<GuiElement type="bitmap" profile="bottomScrollClipper" name="bottomClipper" />
+
+			<GuiElement type="scrollingLayout" profile="ingameMenuSettingsLayout" id="boxLayout" topClipperElementName="topClipper" bottomClipperElementName="bottomClipper">
+
+				<GuiElement type="text" profile="settingsMenuSubtitle" id="mogliHeaderText" text="$mogli_AIVE_VERSION"/>
+
+
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="enabled" 
+										onCreate="onCreateSubElement" >										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_ENABLED"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_ENABLED"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="rightAreaActive" onCreate="onCreateSubElement" onCreateArgs="list">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_ACTIVESIDE"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_ACTIVESIDE"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="upNDown" onCreate="onCreateSubElement" onCreateArgs="list">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_UTURN_TYPE"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_UTURN_TYPE"/>
+				</GuiElement>
+
+				<!--GuiElement type="checkedOption" profile="multiTextOptionSettings" id="noSteering" onCreate="onCreateSubElement" onCreateArgs="inverted">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_STEERING"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_NOSTEERING"/>
+				</GuiElement-->
+
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="waitForPipe" onCreate="onCreateSubElement">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_WAIT_FOR_PIPE"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_WAIT_FOR_PIPE" />
+				</GuiElement>
+
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="inverted" onCreate="onCreateSubElement">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_INVERTED"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_INVERTED"/>
+				</GuiElement>
+		
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="noSprayer" onCreate="onCreateSubElement">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_NOSPRAYER"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_NOSPRAYER"/>
+				</GuiElement>
+		
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="widthOffset" onCreate="onCreateSubElement" onCreateArgs="list">										
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_WIDTH_OFFSET"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_WIDTH_OFFSET"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="turnModeIndex" onCreate="onCreateSubElement" onCreateArgs="list">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_TURN_MODE"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_TURN_MODE"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="turnModeIndexC" onCreate="onCreateSubElement" onCreateArgs="list">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_TURN_MODEC"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_TURN_MODEC"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="turnOffset" onCreate="onCreateSubElement" onCreateArgs="list">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_TURN_OFFSET"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_TURN_OFFSET"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="headland" onCreate="onCreateSubElement" onCreateArgs="list">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_HEADLAND"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_HEADLAND"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="maxCircles" onCreate="onCreateSubElement" onCreateArgs="list0">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_MAXCIRCLES"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_MAXCIRCLES"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="angleFactor" onCreate="onCreateSubElement" onCreateArgs="percent5">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_ANGLE_OFFSET"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_ANGLE_OFFSET"/>
+				</GuiElement>
+
+				<GuiElement type="multiTextOption" profile="multiTextOptionSettings" id="precision" onCreate="onCreateSubElement" onCreateArgs="list0">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text"   profile="multiTextOptionSettingsText" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_PRECISION"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_PRECISION"/>
+				</GuiElement>
+
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="GuiActive" onCreate="onCreateSubElement">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_TEXTHELPPANELON"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_TEXTHELPPANELON"/>
+				</GuiElement>
+
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="showTrace" onCreate="onCreateSubElement">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_TRACE"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_TRACE"/>
+				</GuiElement>
+
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="acPause" onCreate="onCreateSubElement">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_PAUSE_OFF"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_PAUSE_OFF"/>
+				</GuiElement>
+				
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="useAIFieldFct" onCreate="onCreateSubElement">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_USE_AI_FIELD"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_USE_AI_FIELD"/>
+				</GuiElement>
+				
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="collision" onCreate="onCreateSubElement">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_COLLISION_ON"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_COLLISION_ON"/>
+				</GuiElement>
+				
+				<GuiElement type="checkedOption" profile="multiTextOptionSettings" id="turnLow" onCreate="onCreateSubElement">
+					<GuiElement type="button" profile="multiTextOptionSettingsLeft" />
+					<GuiElement type="button" profile="multiTextOptionSettingsRight"/>
+					<GuiElement type="text" profile="multiTextOptionSettingsText" />
+					<GuiElement type="text" profile="multiTextOptionSettingsTitle" text="$mogli_AIVE_TURNLOW_ON"/>
+					<GuiElement type="bitmap" profile="multiTextOptionSettingsBg" />
+					<GuiElement type="text"   profile="multiTextOptionSettingsTooltip" text="$mogli_AIVE_TURNLOW_ON"/>
+				</GuiElement>
+			</GuiElement>
+
+			<GuiElement type="flowLayout" profile="buttonBoxDialog" id="buttonsPC" >
+				<GuiElement type="button" profile="buttonBack"   text="$l10n_button_back"     onClick="onClickOk"       id="backButton" />
+				<GuiElement type="button" profile="buttonExtra1" text="$l10n_button_defaults" onClick="onClickDefaults" id="defaultButton"/>
+			</GuiElement>
+		</GuiElement>
+	</GuiElement>
+</GUI>
