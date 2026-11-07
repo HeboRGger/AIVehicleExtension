@@ -1,0 +1,81 @@
+name: Publish FS25 mod release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/release.yml
+      - FS25_AIVehicleExtension.zip
+      - FS25_AIVehicleExtension.zip.sha256
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: fs25-mod-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'HeboRGger/AIVehicleExtension'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check out the exact publishing commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/$GH_REPO.git"
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+
+      - name: Verify the installable mod and read its version
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, os, re, zipfile, xml.etree.ElementTree as ET
+          archive = Path('FS25_AIVehicleExtension.zip')
+          expected, name = Path(str(archive) + '.sha256').read_text().strip().split()
+          assert name == archive.name, 'Unexpected archive name'
+          assert re.fullmatch(r'[0-9a-f]{64}', expected), 'Invalid checksum'
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == expected, 'ZIP checksum mismatch'
+          with zipfile.ZipFile(archive) as package:
+              assert package.testzip() is None, 'Damaged ZIP'
+              assert 'modDesc.xml' in package.namelist(), 'modDesc.xml must be at ZIP root'
+              assert 'LICENSE.txt' in package.namelist(), 'Missing license'
+              version = ET.fromstring(package.read('modDesc.xml')).findtext('version')
+          assert re.fullmatch(r'\d+\.\d+\.\d+\.\d+', version or ''), 'Invalid mod version'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print('version=' + version, file=output)
+          print('Verified installable mod version ' + version)
+          PY
+
+      - name: Publish the mod ZIP and its checksum
+        shell: bash
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if gh release view "$tag" --json isDraft --jq .isDraft > "$RUNNER_TEMP/aive-release-state" 2>/dev/null; then
+            if [ "$(cat "$RUNNER_TEMP/aive-release-state")" != "true" ]; then
+              mkdir -p "$RUNNER_TEMP/aive-existing-release"
+              gh release download "$tag" --pattern FS25_AIVehicleExtension.zip --dir "$RUNNER_TEMP/aive-existing-release"
+              cmp FS25_AIVehicleExtension.zip "$RUNNER_TEMP/aive-existing-release/FS25_AIVehicleExtension.zip"
+              echo 'This version is already published with the identical mod ZIP.'
+              exit 0
+            fi
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --title "AI Vehicle Extension FS25 $VERSION" --notes-file RELEASE_NOTES.md --draft
+          fi
+          gh release upload "$tag" FS25_AIVehicleExtension.zip FS25_AIVehicleExtension.zip.sha256 --clobber
+          gh release edit "$tag" --draft=false --latest
