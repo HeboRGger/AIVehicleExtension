@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="105">
 	<author>Mogli / Adapted for FS25</author>
-    <version>2.6.0.1</version>
+    <version>2.6.0.3</version>
 	<l10n filenamePrefix="modDesc_l10n">
 		<text name="AIVE_VERSION">
-			<en>AI Vehicle Extension v2.6.0.1 (FS25)</en>
-			<de>AI Vehicle Extension v2.6.0.1 (FS25)</de>
-			<ru>AI Vehicle Extension v2.6.0.1 (FS25)</ru>
+			<en>AI Vehicle Extension v2.6.0.3 (FS25)</en>
+			<de>AI Vehicle Extension v2.6.0.3 (FS25)</de>
+			<ru>AI Vehicle Extension v2.6.0.3 (FS25)</ru>
 		</text>
 
 	</l10n>
@@ -21,7 +21,8 @@
 AIVehicleExtension contains an alternative hired worker adapted for Farming Simulator 25 that can work on fields with irregular edges. It has additional features like circular (grinding) mode, headland support, automatic steering, and full compatibility with FS25 wheel physics.
 
 Here are the most important input bindings:
-* H: Start/stop the selected worker or native steering assist
+* AIVE HUD first button: Start/stop the AIVE worker
+* H: Native selected worker or steering assist
 * Left Ctrl + H: Open the AIVE settings & HUD panel
 * Left Alt + H / Left Shift + H: Show/hide the AIVE head-up display (HUD)
 * Left Alt + 7: Toggle AIVE edge steering
@@ -34,7 +35,8 @@ Here are the most important input bindings:
 AIVehicleExtension beinhaltet einen alternativen Helfer für den Landwirtschafts-Simulator 25, der auch Felder mit unregelmäßigen Kanten bearbeiten kann. Darüber hinaus bietet er weitere Möglichkeiten wie Kreisfahrt, Vorgewende, automatische Lenkung und volle Kompatibilität mit der FS25-Reifenphysik.
 
 Hier ist die Tastaturbelegung:
-* H: Gewählten Helfer oder die Standard-Lenkhilfe starten/stoppen
+* Erste AIVE-HUD-Taste: AIVE-Helfer starten/stoppen
+* H: Gewählter Standard-Helfer oder Standard-Lenkhilfe
 * Left Ctrl + H: AIVE-Einstellungen & HUD öffnen
 * Left Alt + H / Left Shift + H: AIVE-HUD ein-/ausblenden
 * Left Alt + 7: AIVE-Lenkhilfe
@@ -47,7 +49,8 @@ Hier ist die Tastaturbelegung:
 Модификация AI Vehicle Extension (адаптированная под Farming Simulator 25) содержит альтернативного наёмного работника для полей со сложными и неровными краями. Включает круговой режим (по периметру поля), обработку разворотной полосы, автоподруливание, поддержку новой физики колёс FS25 и панель настроек в HUD.
 
 Основные горячие клавиши:
-* H: Включить/выключить выбранного помощника или ванильную помощь в рулении
+* Первая кнопка HUD AIVE: запустить/остановить помощника AIVE
+* H: Штатный выбранный работник или ванильная помощь в рулении
 * Левый Ctrl + H: Открыть панель настроек и HUD AIVE
 * Левый Alt + H / Левый Shift + H: Показать/скрыть панель HUD AIVE
 * Левый Alt + 7: Автоподруливание AIVE по кромке (вкл/выкл)

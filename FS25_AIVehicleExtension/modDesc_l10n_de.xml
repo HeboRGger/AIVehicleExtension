@@ -4,6 +4,12 @@
 	<description><![CDATA[Auto Traktor]]></description>
 
 	<texts>
+		<text name="AIVE_WORKER_START" text="AIVE-Helfer starten"/>
+		<text name="AIVE_WORKER_STOP" text="AIVE-Helfer stoppen"/>
+		<text name="AIVE_WORKER_PENDING" text="Helferbefehl wird gesendet..."/>
+		<text name="AIVE_WORKER_EXTERNAL" text="Zuerst die Steuerung durch Courseplay/AutoDrive stoppen."/>
+		<text name="AIVE_WORKER_NO_PERMISSION" text="Keine Berechtigung, einen Helfer einzustellen."/>
+		<text name="AIVE_WORKER_NOT_READY" text="Auf diesem Fahrzeug kann derzeit kein Helfer gestartet werden."/>
         <text name="AIVE_JOB_SETTING" text="Weitere AIVE-Einstellung"/>
         <text name="AIVE_JOB_VALUE" text="Einstellungswert"/>
         <text name="AIVE_JOB_CHECK_PREPARATION" text="AIVE: Feldziel, Saatgut, Duenger und Aussaatzeit pruefen."/>

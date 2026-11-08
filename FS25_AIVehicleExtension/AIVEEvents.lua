@@ -144,6 +144,7 @@ function AIVehicleExtension:setInt32Value( name, value, noEventSend )
 	elseif name == "lowered" then
 		self.acIsLowered = value
 	elseif name == "autoSteer" then 
+		self.aiveAutoSteerAxis,self.aiveAutoSteerFilteredAxis=nil,nil
 		if value > 1 then
 			self.aiveAutoSteer = false
 			self.aiveIsStarted = true 

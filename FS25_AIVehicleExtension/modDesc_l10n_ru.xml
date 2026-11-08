@@ -4,6 +4,12 @@
 	<description><![CDATA[AIVehicleExtension]]></description>
 
 	<texts>
+		<text name="AIVE_WORKER_START" text="Запустить помощника AIVE"/>
+		<text name="AIVE_WORKER_STOP" text="Остановить помощника AIVE"/>
+		<text name="AIVE_WORKER_PENDING" text="Команда помощнику отправлена..."/>
+		<text name="AIVE_WORKER_EXTERNAL" text="Сначала остановите управление Courseplay/AutoDrive."/>
+		<text name="AIVE_WORKER_NO_PERMISSION" text="Нет разрешения нанимать помощника."/>
+		<text name="AIVE_WORKER_NOT_READY" text="На этой машине сейчас нельзя запустить помощника."/>
         <text name="AIVE_JOB_SETTING" text="Дополнительная настройка AIVE"/>
         <text name="AIVE_JOB_TRAVEL" text="Переезд к полю"/>
         <text name="AIVE_JOB_TRAVEL_AUTO" text="Авто: сеть / сплайны / GIANTS"/>

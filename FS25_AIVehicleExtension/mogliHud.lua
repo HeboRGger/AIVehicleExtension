@@ -391,6 +391,7 @@ else
 				return
 			end
 			self[_level0_].Tooltip = nil
+			self[_level0_].DynamicTooltip = nil
 			local textID, textCB
 			if self[_level0_].GuiActive and self[_level0_].Buttons ~= nil then
 				local isSmall = self[_level0_].ResizeSmall
@@ -423,6 +424,7 @@ else
 							textID = overlayButton.text2
 						end
 						textCB = overlayButton.textcb
+						if overlayButton.dynamicTooltip then self[_level0_].DynamicTooltip=overlayButton end
 						break
 					end
 				end
@@ -538,6 +540,10 @@ else
 				setTextColor(1, 1, 1, 1)
 
 				if self[_level0_].GuiActive then
+					local dynamic=self[_level0_].DynamicTooltip
+					if dynamic~=nil and dynamic.textcb~=nil then
+						self[_level0_].Tooltip=dynamic.textcb(self,_newClass_.getText(dynamic.text1))
+					end
 					if self[_level0_].Tooltip ~= nil and self[_level0_].Tooltip ~= "" then
 						renderText(self[_level0_].TextPosX, self[_level0_].TextPosY, self[_level0_].TextSize, tostring(self[_level0_].Tooltip))
 					elseif self[_level0_].InfoText ~= nil and self[_level0_].InfoText ~= "" then

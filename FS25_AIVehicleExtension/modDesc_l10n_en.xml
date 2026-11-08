@@ -4,6 +4,12 @@
 	<description><![CDATA[Auto Tractor]]></description>
 
 	<texts>
+		<text name="AIVE_WORKER_START" text="Start AIVE worker"/>
+		<text name="AIVE_WORKER_STOP" text="Stop AIVE worker"/>
+		<text name="AIVE_WORKER_PENDING" text="Sending worker command..."/>
+		<text name="AIVE_WORKER_EXTERNAL" text="Stop Courseplay/AutoDrive before using the AIVE worker."/>
+		<text name="AIVE_WORKER_NO_PERMISSION" text="You do not have permission to hire a worker."/>
+		<text name="AIVE_WORKER_NOT_READY" text="A worker cannot start on this vehicle right now."/>
         <text name="AIVE_JOB_SETTING" text="Additional AIVE setting"/>
         <text name="AIVE_JOB_TRAVEL" text="Travel to field"/>
         <text name="AIVE_JOB_TRAVEL_AUTO" text="Auto: graph / splines / GIANTS"/>

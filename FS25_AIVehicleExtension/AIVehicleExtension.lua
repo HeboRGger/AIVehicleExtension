@@ -349,7 +349,8 @@ function AIVehicleExtension:initMogliHud()
 	AIVEHud.setTitle( self, "AIVE_VERSION" )
 
 	-- Row 1: Primary AI Controls
-	AIVEHud.addButton(self, "dds/ai_combine.dds",     "dds/auto_combine.dds",  AIVehicleExtension.onEnable,      AIVehicleExtension.evalEnable,     1,1, "AIVE_STOP", "AIVE_START", nil, AIVehicleExtension.getEnableImage )
+	local workerButton=AIVEHud.addButton(self, "dds/hire_on.dds", "dds/hire_off.dds", AIVehicleExtension.onToggleWorker, nil, 1,1, "AIVE_WORKER_START", "AIVE_WORKER_STOP", AIVehicleExtension.getWorkerText, AIVehicleExtension.getWorkerImage)
+	if workerButton~=nil then workerButton.dynamicTooltip=true end
 	AIVEHud.addButton(self, "dds/active_right.dds",   "dds/active_left.dds",   AIVehicleExtension.setAreaLeft,   AIVehicleExtension.evalAreaLeft,   2,1, "AIVE_ACTIVESIDERIGHT", "AIVE_ACTIVESIDELEFT" )
 	AIVEHud.addButton(self, nil,                      nil,                     AIVehicleExtension.setUTurn,      nil,                               3,1, "AIVE_SETTINGS", "AIVE_SETTINGS", AIVehicleExtension.getUTurnText, AIVehicleExtension.getUTurnImage )
 	AIVEHud.addButton(self, nil,                      nil,                     AIVehicleExtension.setHeadland,   nil,                               4,1, "AIVE_SETTINGS", "AIVE_SETTINGS", AIVehicleExtension.getHeadlandText, AIVehicleExtension.getHeadlandImage )
@@ -550,6 +551,108 @@ function AIVehicleExtension.isNativeSteeringSelected(vehicle)
 	local spec=root and root.spec_aiModeSelection
 	return spec~=nil and AIModeSelection~=nil and AIModeSelection.MODE~=nil
 		and AIModeSelection.MODE.STEERING_ASSIST~=nil and spec.currentMode==AIModeSelection.MODE.STEERING_ASSIST
+end
+
+local function workerText(key, fallback)
+	local value=AIVEHud.getText(key)
+	return value==key and fallback or value
+end
+
+local function workerTime()
+	return g_time or (g_currentMission and g_currentMission.time) or 0
+end
+
+function AIVehicleExtension.isWorkerActive(vehicle)
+	local root=AIVehicleExtension.getControlVehicle(vehicle)
+	if root==nil then return false end
+	if type(root.getIsAIActive)=="function" then return root:getIsAIActive()==true end
+	return type(root.getIsFieldWorkActive)=="function" and root:getIsFieldWorkActive()==true
+end
+
+function AIVehicleExtension.isWorkerButtonPending(vehicle)
+	local root=AIVehicleExtension.getControlVehicle(vehicle)
+	return root~=nil and root.aiveGuiWorkerButtonUntil~=nil and workerTime()<root.aiveGuiWorkerButtonUntil
+end
+
+function AIVehicleExtension:getWorkerText()
+	if AIVehicleExtension.isWorkerButtonPending(self) then
+		return workerText("AIVE_WORKER_PENDING","Sending worker command...")
+	elseif AIVehicleExtension.isWorkerActive(self) then
+		return workerText("AIVE_WORKER_STOP","Stop AIVE worker")
+	end
+	return workerText("AIVE_WORKER_START","Start AIVE worker")
+end
+
+function AIVehicleExtension:getWorkerImage()
+	return AIVehicleExtension.isWorkerActive(self) and "dds/hire_on.dds" or "dds/hire_off.dds"
+end
+
+local function workerWarning(vehicle,key,fallback)
+	local message=workerText(key,fallback)
+	if vehicle.atHud~=nil then AIVEHud.setInfoText(vehicle,message) end
+	if g_currentMission and type(g_currentMission.showBlinkingWarning)=="function" then
+		g_currentMission:showBlinkingWarning(message,4000)
+	end
+	return false
+end
+
+-- Only an explicit GUI start changes the native mode. H keeps its native
+-- short/long-press handling; the native request still validates farm/job access.
+function AIVehicleExtension:onToggleWorker()
+	self=AIVehicleExtension.getControlVehicle(self)
+	if self==nil or self.acParameters==nil or type(self.toggleAIVehicle)~="function" then return false end
+	if AIVehicleExtension.isWorkerButtonPending(self) then return false end
+	local external,name=false,nil
+	if AIVEConflictGuard~=nil then external,name=AIVEConflictGuard.isExternalAIActive(self) end
+	if external and name~="FS25_AutomaticSteering" then
+		return workerWarning(self,"AIVE_WORKER_EXTERNAL","Stop Courseplay/AutoDrive before using the AIVE worker.")
+	end
+	if g_currentMission and type(g_currentMission.getHasPlayerPermission)=="function"
+			and not g_currentMission:getHasPlayerPermission("hireAssistant") then
+		return workerWarning(self,"AIVE_WORKER_NO_PERMISSION","You do not have permission to hire a worker.")
+	end
+	if AIVehicleExtension.isWorkerActive(self) then
+		self.aiveGuiWorkerButtonUntil=workerTime()+750
+		self:toggleAIVehicle()
+		return true
+	end
+	if type(self.getCanStartAIVehicle)=="function" and not self:getCanStartAIVehicle() then
+		return workerWarning(self,"AIVE_WORKER_NOT_READY","A worker cannot start on this vehicle right now.")
+	end
+	local mode=self.spec_aiModeSelection
+	if mode~=nil and (AIModeSelection==nil or AIModeSelection.MODE==nil
+			or type(self.setAIModeSelection)~="function") then
+		return workerWarning(self,"AIVE_WORKER_NOT_READY","A worker cannot start on this vehicle right now.")
+	end
+	if mode~=nil and mode.currentMode==AIModeSelection.MODE.STEERING_ASSIST then
+		self.aiveGuiWorkerSession={previousMode=mode.currentMode,requestedAt=workerTime(),observedActive=false}
+	end
+	if self.spec_aiAutomaticSteering and self.spec_aiAutomaticSteering.steeringEnabled
+			and type(self.setAIAutomaticSteeringEnabled)=="function" then
+		self:setAIAutomaticSteeringEnabled(false)
+	end
+	if self.aiveAutoSteer then AIVehicleExtension.onAutoSteer(self,false) end
+	if mode~=nil then self:setAIModeSelection(AIModeSelection.MODE.WORKER) end
+	self.acParameters.enabled=true
+	self.acPause=false
+	AIVehicleExtension.sendParameters(self)
+	self.aiveGuiWorkerButtonUntil=workerTime()+750
+	self:toggleAIVehicle()
+	return true
+end
+
+function AIVehicleExtension.updateGuiWorkerSession(vehicle)
+	local session=vehicle.aiveGuiWorkerSession
+	if session==nil then return end
+	if AIVehicleExtension.isWorkerActive(vehicle) then
+		session.observedActive=true
+	elseif session.observedActive or workerTime()-session.requestedAt>=5000 then
+		vehicle.aiveGuiWorkerSession=nil
+		-- Do not undo a different mode the player selected while the job ran.
+		if vehicle.spec_aiModeSelection and vehicle.spec_aiModeSelection.currentMode==AIModeSelection.MODE.WORKER then
+			vehicle:setAIModeSelection(session.previousMode)
+		end
+	end
 end
 
 function AIVehicleExtension:onAIVEScreen()
@@ -754,7 +857,7 @@ end
 function AIVehicleExtension:onSteerPause()
 	if self:getIsFieldWorkActive() then
 		if self.aiveIsStarted then 
-			self.acPause = not self.acPause
+			AIVehicleExtension.setPause(self,not self.acPause)
 		end
 	else
 		AIVehicleExtension.onAutoSteer( self, not ( self.aiveAutoSteer ) )
@@ -1388,6 +1491,7 @@ end
 -- drive update from onUpdate; AIVE participates through its drive strategy.
 
 function AIVehicleExtension:onUpdate( dt, isActiveForInput, isActiveForInputIgnoreSelection, isSelected )
+	AIVehicleExtension.updateGuiWorkerSession(self)
 
 	if self.aiveIsStarted and not ( self:getIsFieldWorkActive() ) then 
 		self.aiveIsStarted = false
@@ -1951,6 +2055,49 @@ end
 ------------------------------------------------------------------------
 -- autoSteer
 ------------------------------------------------------------------------
+-- Use the chain's look-ahead target, as the worker does, rather than sending
+-- its first (discretized) node angle straight to the wheels. Convert curvature
+-- with FS25's wheel geometry; angle/maxSteering is not its steering calibration.
+function AIVehicleExtension.getAutoSteerAxis(vehicle, angle, targetX, targetZ, dt)
+	local maxAngle=vehicle.acDimensions.maxSteeringAngle
+	local wanted=-angle/math.max(maxAngle,1e-4)
+	local node=type(vehicle.getAIRootNode)=="function" and vehicle:getAIRootNode()
+		or (type(vehicle.getAIDirectionNode)=="function" and vehicle:getAIDirectionNode()) or vehicle.acRefNode
+	if node and targetX and targetZ and type(vehicle.getSteeringRotTimeByCurvature)=="function" then
+		local _,y,_=getWorldTranslation(node)
+		local x,_,z=worldToLocal(node,targetX,y,targetZ)
+		local lengthSq=x*x+z*z
+		if z>0.25 and lengthSq>0.25 then
+			local rotTime=vehicle:getSteeringRotTimeByCurvature(2*x/lengthSq)
+			if type(rotTime)=="number" and rotTime==rotTime and math.abs(rotTime)<math.huge then
+				if type(vehicle.getReverserDirection)=="function" and vehicle:getReverserDirection()<0 then rotTime=-rotTime end
+				local limit=rotTime>=0 and vehicle.maxRotTime or -(vehicle.minRotTime or -1)
+				if limit and limit>1e-4 then wanted=-rotTime/limit end
+			end
+		end
+	end
+	local direction=type(vehicle.getSteeringDirection)=="function" and vehicle:getSteeringDirection() or 1
+	if math.abs(direction)<1e-4 then direction=1 end
+	wanted=wanted/direction
+	wanted=AIVEUtils.clamp(wanted,-1,1)
+	local elapsed=math.max(dt or 0,0)
+	local filtered=vehicle.aiveAutoSteerFilteredAxis
+	if filtered==nil then filtered=wanted else filtered=filtered+(wanted-filtered)*(1-math.exp(-elapsed/90)) end
+	vehicle.aiveAutoSteerFilteredAxis=filtered
+	local previous=vehicle.aiveAutoSteerAxis
+	if previous==nil then
+		local rotated=vehicle.rotatedTime or 0
+		local limit=rotated>=0 and vehicle.maxRotTime or -(vehicle.minRotTime or -1)
+		previous=limit and limit>1e-4 and -rotated/limit/direction or 0
+	end
+	local speed=AIVEWheelUtils.getAISteeringSpeed(vehicle)
+	local limit=math.max(math.abs(vehicle.maxRotTime or 1),math.abs(vehicle.minRotTime or -1),1e-4)
+	local step=elapsed*speed/limit
+	local axis=AIVEUtils.clamp(filtered,previous-step,previous+step)
+	vehicle.aiveAutoSteerAxis=axis
+	return axis
+end
+
 function AIVehicleExtension:newUpdateVehiclePhysics( superFunc, axisForward, axisSide, doHandbrake, dt )
 	if self.aiveAutoSteer and AIVehicleExtension.isNativeSteeringSelected(self) then
 		AIVehicleExtension.setInt32Value(self,"autoSteer",0)
@@ -1969,6 +2116,7 @@ function AIVehicleExtension:newUpdateVehiclePhysics( superFunc, axisForward, axi
 			self.acTurnStage = 0
 			AIVehicleExtension.setStatus( self, 0 )
 			doit = false 
+			self.aiveAutoSteerAxis,self.aiveAutoSteerFilteredAxis=nil,nil
 		end
 
 		if doit then 
@@ -2086,16 +2234,12 @@ function AIVehicleExtension:newUpdateVehiclePhysics( superFunc, axisForward, axi
 			
 			local f = 0.001 * self.acAxisSideFactor
 			
-			local newAxisSide = - angle / self.acDimensions.maxSteeringAngle
-	
-			if self.lastAxisSide ~= nil and border <= 0 and self.acTurnStage ~= 199 then 
-			--local d = 0.0005 * ( 2 + math.min( 18, self.lastSpeed * 3600 ) ) * dt
-				local d = 0.002 * dt 
-				newAxisSide = AIVEUtils.clamp( newAxisSide, self.lastAxisSide-d, self.lastAxisSide+d )
-			end 
+			local useTarget=detected and border<=0 and self.acTurnStage==199
+			local newAxisSide=AIVehicleExtension.getAutoSteerAxis(self,angle,useTarget and tX or nil,useTarget and tZ or nil,dt)
 	
 			if     f <= 0 then
 				newAxisSide = axisSide
+				self.aiveAutoSteerAxis,self.aiveAutoSteerFilteredAxis=nil,nil
 			elseif f  < 1 then
 				newAxisSide = (1-f) * axisSide + f * newAxisSide
 			end
@@ -2104,6 +2248,8 @@ function AIVehicleExtension:newUpdateVehiclePhysics( superFunc, axisForward, axi
 		end
 		
 		self.lastAxisSide = axisSide 
+	else
+		self.aiveAutoSteerAxis,self.aiveAutoSteerFilteredAxis=nil,nil
 	end
 
 	return superFunc( self, axisForward, axisSide, doHandbrake, dt )

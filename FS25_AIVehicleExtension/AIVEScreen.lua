@@ -178,7 +178,12 @@ function AIVEScreen:button(x,y,w,h,label,action,locked)
 	else
 		self:rectangle(x,y,w,h,0.14,0.14,0.14,1)
 	end
-	self:label(x+w/2,y+h/2-0.007,0.016,label,true,locked)
+	local size=0.016
+	if getTextWidth~=nil then
+		local width=getTextWidth(size,label)
+		if width>w-0.012 then size=size*(w-0.012)/width end
+	end
+	self:label(x+w/2,y+h/2-0.007,size,label,true,locked)
 end
 
 function AIVEScreen:draw()
@@ -228,9 +233,10 @@ function AIVEScreen:draw()
 		end
 	end
 	self:label(0.09,0.219,0.013,hint,false,true)
-	self:button(0.09,0.135,0.24,0.045,text("AIVE_DEFAULTS","Defaults"),function()self:onClickDefaults()end,self.vehicle.aiveIsStarted or self.vehicle.aiveAutoSteer)
-	self:button(0.38,0.135,0.24,0.045,text("AIVE_MAGIC","Refresh field"),function()AIVehicleExtension.onMagic(self.vehicle)end,false)
-	self:button(0.67,0.135,0.24,0.045,text("AIVE_CLOSE","Close"),function()self:onClose()end,false)
+	self:button(0.09,0.135,0.19,0.045,AIVehicleExtension.getWorkerText(self.vehicle),function()AIVehicleExtension.onToggleWorker(self.vehicle)end,AIVehicleExtension.isWorkerButtonPending(self.vehicle))
+	self:button(0.30,0.135,0.19,0.045,text("AIVE_DEFAULTS","Defaults"),function()self:onClickDefaults()end,self.vehicle.aiveIsStarted or self.vehicle.aiveAutoSteer)
+	self:button(0.51,0.135,0.19,0.045,text("AIVE_MAGIC","Refresh field"),function()AIVehicleExtension.onMagic(self.vehicle)end,false)
+	self:button(0.72,0.135,0.19,0.045,text("AIVE_CLOSE","Close"),function()self:onClose()end,false)
 	setTextBold(false)
 	setTextAlignment(RenderText.ALIGN_LEFT)
 	setTextColor(1,1,1,1)
