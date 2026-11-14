@@ -90,6 +90,16 @@ function AIDriveStrategyMogli:resumeJob()
 		sensor:delete()
 		AIVELogger.info("JobMemory","Discarded checkpoint on '%s': moved away from the saved working position.",v:getName());return false
 	end
+	-- A paused obstacle plan is tied to its exact start pose. Even a small
+	-- manual turn makes its encounter, goal and swept footprint stale.
+	local obstacle=m.obstacles
+	local moved=(p.x-m.pose.x)^2+(p.z-m.pose.z)^2>0.25 or math.cos(p.h-m.pose.h)<math.cos(math.rad(5))
+	if moved and obstacle and obstacle.phase~="clear" and obstacle.phase~="waiting" then
+		m.stage=obstacle.savedStage or 0
+		m.lowered=obstacle.savedLowered~=false
+		m.obstacles={phase="clear",clock=obstacle.clock or 0,nextProbe=0,coverageDebts=obstacle.coverageDebts,nextCoverageAt=obstacle.nextCoverageAt}
+		AIVELogger.info("JobMemory","Discarded stale obstacle manoeuvre on '%s' after manual repositioning; preserving field route.",v:getName())
+	end
 	for _,key in ipairs(jobFields) do self[key]=m.state[key] end
 	for _,key in ipairs(vehicleJobFields) do v[key]=m.vehicleState[key] end
 	if m.trace then v.aiveChain.trace=m.trace end
@@ -99,6 +109,7 @@ function AIDriveStrategyMogli:resumeJob()
 	v.aiRescueTimer=v.acDeltaTimeoutStop
 	self.obstacles=sensor
 	for key,value in pairs(m.obstacles) do sensor[key]=value end
+	if sensor.maneuverSearch then sensor.maneuverSearch.controller=sensor end
 	sensor.nextProbe=0;sensor.lastHit=nil;sensor.waitNode=nil;sensor.ignore={}
 	v.aiveObstacleController=sensor
 	v.aiveAvoidingObstacle=sensor.phase~="clear" and sensor.phase~="waiting" or nil

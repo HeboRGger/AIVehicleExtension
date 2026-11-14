@@ -118,7 +118,7 @@ end
 --==============================================================================
 AIVELogger = {}
 AIVELogger.MOD_NAME   = "FS25_AIVehicleExtension"
-AIVELogger.VERSION    = "2.6.0.3"
+AIVELogger.VERSION    = "2.6.0.10"
 AIVELogger.LEVEL_OFF   = 0
 AIVELogger.LEVEL_ERROR = 1
 AIVELogger.LEVEL_WARN  = 2

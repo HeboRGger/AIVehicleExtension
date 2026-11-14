@@ -3,6 +3,8 @@
 -- another vehicle permission to drive through it: every detour is swept again.
 AIVEObstacles={}
 AIVEObstacles.__index=AIVEObstacles
+AIVEObstacles.CLEARANCE=0.10
+AIVEObstacles.REVERSE_CLEARANCE=0.35
 AIVEObstacles.controllers=setmetatable({},{__mode="k"})
 local atan2=math.atan2 or function(y,x)return math.atan(y,x)end
 local pi2=2*math.pi
@@ -118,7 +120,7 @@ function AIVEObstacles:dimensions()
 			partCount=partCount+1
 			local part=self.parts[partCount] or {};self.parts[partCount]=part
 			part.along,part.side,part.h=a,b,wrap(h-pose.h)
-			part.half,part.length,part.height,part.label=(b1-b0)/2+0.2,(a1-a0)/2+0.2,math.max(2.5,size.height or 3),label
+			part.half,part.length,part.height,part.label=(b1-b0)/2+AIVEObstacles.CLEARANCE,(a1-a0)/2+AIVEObstacles.CLEARANCE,math.max(2.5,size.height or 3),label
 			local ca,sa=math.cos(part.h),math.sin(part.h)
 			local ex=math.abs(ca)*part.length+math.abs(sa)*part.half
 			local ez=math.abs(sa)*part.length+math.abs(ca)*part.half
@@ -151,13 +153,26 @@ function AIVEObstacles:dimensions()
 	for _,child in pairs(v.childVehicles or {}) do add(child) end
 	if type(v.getAttachedAIImplements)=="function" then for _,item in ipairs(v:getAttachedAIImplements()) do add(item.object) end end
 	for _,tool in pairs(c.tools or {}) do add(tool.obj) end
+	-- Only a rigid combine/cutter may use close rear approaches. Articulated
+	-- implements require their own kinematic model, not a smaller safety box.
+	self.precisionCombine=v.spec_combine~=nil
+	for object in pairs(seen) do
+		if object~=v and (object.spec_trailer or object.spec_articulatedAxis or object.spec_attachable and object.spec_attachable.isTrailer) then self.precisionCombine=false end
+	end
 	for i=#self.parts,partCount+1,-1 do self.parts[i]=nil end
 	-- Compatibility for a work-width-only tool with no separate scene object.
 	if #self.parts==1 and not next(c.tools or {}) and not next(v.childVehicles or {}) then
 		local part=self.parts[1]
-		part.half=math.max(part.half,(d.distance or 0)+0.35)
+		part.half=math.max(part.half,(d.distance or 0)+AIVEObstacles.CLEARANCE+0.15)
 		self.half=math.max(self.half,part.half)
 	end
+end
+function AIVEObstacles:reverseClearance()
+	if not self.precisionCombine then return AIVEObstacles.REVERSE_CLEARANCE end
+	-- CLEARANCE is already on the physical hull. Add braking distance and a
+	-- small latency allowance; at rest this is 15 cm from the measured body.
+	local s=speed(self.vehicle)
+	return .05+s*.12+s*s/(2*1.5)
 end
 function AIVEObstacles:onOverlap(node)
 	local ok,err=pcall(self.classifyNode,self,node)
@@ -213,6 +228,10 @@ end
 local function clippedPart(part,front,back,reverse)
 	local a,b,h=part.along,part.side,part.h
 	if reverse then a,b,h=-a,-b,h+math.pi end
+	-- A full part needs no polygon clipping or projection back into itself.
+	if front==nil and back==nil and part.half>=0.01 and part.length>=0.01 then
+		return a,b,h,part.half,part.length
+	end
 	local ca,sa=math.cos(h),math.sin(h)
 	local polygon={}
 	for _,corner in ipairs(footprintCorners) do
@@ -294,7 +313,7 @@ function AIVEObstacles:queryPart(x,z,h,half,length,height)
 	-- A long flat query at its centre's ground height cuts into rising roads.
 	-- Follow the highest sampled ground under THIS part, not the whole rig.
 	local y=getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode,x,0,z)
-	for _,corner in ipairs({{-1,-1},{1,-1},{1,1},{-1,1}}) do
+	for _,corner in ipairs(footprintCorners) do
 		local u,w=corner[1]*length,corner[2]*half
 		local gx,gz=x+u*ca-w*sa,z+u*sa+w*ca
 		y=math.max(y,getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode,gx,0,gz))
@@ -322,12 +341,12 @@ function AIVEObstacles:queryPart(x,z,h,half,length,height)
 	end
 	return self.probeHit
 end
-function AIVEObstacles:box(p,reverse,frontLimit,backLimit)
+function AIVEObstacles:box(p,reverse,frontLimit,backLimit,extra)
 	local fx,fz=math.cos(p.h),math.sin(p.h)
 	for _,part in ipairs(self.parts or {}) do
 		local a,b,h,half,length=clippedPart(part,frontLimit,backLimit,reverse)
 		if a then
-			local hit=self:queryPart(p.x+a*fx-b*fz,p.z+a*fz+b*fx,p.h+h,half,length,part.height)
+			local hit=self:queryPart(p.x+a*fx-b*fz,p.z+a*fz+b*fx,p.h+h,half+(extra or 0),length+(extra or 0),part.height)
 			if hit then
 				hit.part=part.label or "body";hit.width=2*half;hit.length=2*length
 				return hit
@@ -356,22 +375,38 @@ function AIVEObstacles:frontSweep(p,distance)
 		if hit then return hit end
 	end
 end
-function AIVEObstacles:scan(p,target,forward,range)
+function AIVEObstacles:scan(p,target,forward,range,options)
 	local h=p.h+(forward and 0 or math.pi)
+	-- A recovered old checkpoint may predate the saved route target. A
+	-- straight safety probe is still valid; never dereference a missing goal.
+	target=target or {x=p.x+math.cos(h)*5,z=p.z+math.sin(h)*5}
 	local dx,dz=target.x-p.x,target.z-p.z
 	local cross=-math.sin(h)*dx+math.cos(h)*dz
 	local k=2*cross/math.max(1,dx*dx+dz*dz)
 	k=math.max(-1/self.radius,math.min(1/self.radius,k))
+	-- The edge controller updates its steering point every frame. Extending
+	-- a tight instantaneous curve for 14m predicts a circle the helper never
+	-- intends to drive. Keep long straight previews, but only the near arc
+	-- of a changing working turn. Physical braking and moving-object waits
+	-- still sweep the complete rig through that near corridor.
+	if options and options.maxYaw and math.abs(k)>1e-6 then range=math.min(range,options.maxYaw/math.abs(k)) end
 	local x,z=p.x,p.z
 	-- Reverse corners approach fixed objects slowly; use a finer sweep so
 	-- the last metre is not quantised into 40 cm jumps.
 	local steps=math.max(1,math.ceil(range/(forward and 0.4 or 0.15)))
 	for i=0,steps do
-		local hit=self:box({x=x,z=z,h=h},not forward)
-		if hit then hit.distance=i*range/steps;return hit end
+		local hit=self:box({x=x,z=z,h=h},not forward,nil,nil,options and options.reserve)
+		if hit then
+			hit.distance=i*range/steps
+			hit.pose={x=x,z=z,h=h}
+			return hit
+		end
 		local step=range/steps
 		local nextH=h+k*step
-		x=x+step*math.cos((h+nextH)/2);z=z+step*math.sin((h+nextH)/2);h=nextH
+		if math.abs(k)>1e-8 then
+			x=x+(math.sin(nextH)-math.sin(h))/k;z=z-(math.cos(nextH)-math.cos(h))/k
+		else x=x+step*math.cos(h);z=z+step*math.sin(h) end
+		h=nextH
 	end
 	return nil
 end
@@ -404,6 +439,30 @@ function AIVEObstacles:canWorkAround(forward)
 	if not v.spec_combine then return false end
 	return true
 end
+function AIVEObstacles:escalateWorkingBypass()
+	if self.coverageTask and AIVECoverage then
+		AIVECoverage.defer(self,self.coverageTask,"working approach became obstructed")
+		return true
+	end
+	if not self.precisionCombine then return false end
+	local p=self.encounterPose or self:pose()
+	if AIVECoverage then AIVECoverage.record(self,p,6) end
+	self.workingBypass=nil;self.vehicle.aiveWorkingBypass=nil
+	self.savedTurning=false
+	self.vehicle:aiFieldWorkerStartTurn(true)
+	AIVehicleExtension.setAIImplementsMoveDown(self.vehicle,false,true)
+	self:log("working deviation does not fit; retaining crop entry and trying a short multi-point turn")
+	if self:beginManeuver() then return true end
+	self:beginPlan(self:pose(),self.hit,self.routeTarget.x,self.routeTarget.z,true)
+	return true
+end
+function AIVEObstacles:resetFieldSearch()
+	local s,v=self.strategy,self.vehicle
+	for _,turn in pairs(s.turnStrategies or {}) do if turn.onEndTurn then turn:onEndTurn(s.turnLeft) end end
+	s.currentTurnStrategy=nil;s.search=AIDriveStrategyMogli.searchStart
+	s.lastDirection=nil;s.aiveTurnTimer=v.acDeltaTimeoutRun
+	v:aiFieldWorkerEndTurn(s.turnLeft);v.acTurnStage=-(s.search or 3)
+end
 function AIVEObstacles:beginWorkingBypass(p,hit,tx,tz)
 	if not self.workingBypass then
 		self.savedLowered=self.vehicle.acImplementsMoveDown~=false
@@ -414,62 +473,83 @@ function AIVEObstacles:beginWorkingBypass(p,hit,tx,tz)
 	self.vehicle.aiveAvoidingObstacle=true;self.vehicle.aiveWorkingBypass=true
 	self.vehicle.acTurnStage=202
 	self.encounterPose={x=p.x,z=p.z,h=p.h}
+	-- Retain the original working line through replans. Using the currently
+	-- steered heading here makes every retry adopt a different field edge.
+	self.workingLine=self.workingLine or {x=p.x,z=p.z,h=p.h}
+	local line=self.workingLine
+	local lineFx,lineFz=math.cos(line.h),math.sin(line.h)
+	local startSide=-(p.x-line.x)*lineFz+(p.z-line.z)*lineFx
+	local origin={x=p.x+startSide*lineFz,z=p.z-startSide*lineFx,h=line.h}
+	local headingDelta=wrap(p.h-line.h)
+	local startSlope=math.tan(headingDelta)
 	self.routeTarget={x=tx,z=tz};self.routeForward=true
 	self.hit=hit;self.phase="planning";self.candidates={};self.blockedAt=self.clock
-	local fx,fz=math.cos(p.h),math.sin(p.h)
-	local objectAlong=(hit.x-p.x)*fx+(hit.z-p.z)*fz
-	-- distance comes from a collision query, not from the object's scene origin.
-	local approach=math.max(3,(hit.distance or 0)-0.8)
-	local plateau=math.max(approach+2,objectAlong+self.back+1,self.front+self.back+(hit.distance or 0)+1)
-	local finish=plateau+approach
-	local grouped=1
-	local maxOffset=math.min(12,math.max(4,2*self.half))
-	-- Do not rejoin the border immediately in front of the NEXT bush. The
-	-- previous planner swept the bypass itself, but never the road ahead of
-	-- its rejoin; it discovered the third bush with only 2.7 m left to steer.
-	-- Keep the lateral deviation across a cluster until a complete steering
-	-- preview on the saved working line is clear after the return.
-	local seen={[hit.node or 0]=true}
-	local preview=math.max(14,2*self.radius+3)
-	local u=0
-	local waitForTraffic=false
-	-- Sweep CONTINUOUSLY as the goal grows. Checking only the new endpoint
-	-- skipped an entire header-length interval and missed a fourth bush
-	-- between the old/new return positions on Vladimirovka's real boundary.
-	while u<=math.min(180,finish+preview) do
-		local q={x=p.x+fx*u,z=p.z+fz*u,h=p.h}
+	local fx,fz=lineFx,lineFz
+	-- The line scan already sweeps front, rear and cutter. Adding their
+	-- lengths a second time was responsible for very long working detours.
+	local intervals={};local current;local u=0;local grouped=0
+	local seen={};local waitForTraffic=false
+	local scanLimit=math.min(180,math.max(50,(hit.distance or 0)+40))
+	while u<=scanLimit do
+		local q={x=origin.x+fx*u,z=origin.z+fz*u,h=line.h}
 		if not self:isWorkingPoseOnField(q) then break end
 		local nextHit=self:box(q,false)
 		if nextHit then
 			if nextHit.sensorFailed or AIVEObstacles.mustWait(nextHit) then waitForTraffic=true;break end
 			if not seen[nextHit.node or 0] then seen[nextHit.node or 0]=true;grouped=grouped+1 end
-			local nextPlateau=u+self.front+self.back+1
-			if nextPlateau>plateau and nextPlateau+approach<=180 then plateau=nextPlateau;finish=plateau+approach end
-		end
-		u=u+0.4
+			if not current then current={first=u,last=u};intervals[#intervals+1]=current end
+			current.last=u+.4
+		else current=nil end
+		u=u+.4
 	end
-	self.goal={x=p.x+fx*finish,z=p.z+fz*finish,h=p.h}
+	if #intervals==0 then intervals[1]={first=hit.distance or 0,last=(hit.distance or 0)+1} end
+	local maxOffset=math.min(12,math.max(4,2*self.half))
 	local preferred=self.vehicle.acParameters.rightAreaActive and -1 or 1
-	for i=1,(waitForTraffic and 0 or math.ceil(maxOffset/0.25)) do
-		for _,sign in ipairs({preferred,-preferred}) do
-			local offset=i*0.25*sign
-			-- A later, wider bush may require more shift than the first one.
-			-- Give that shift enough length for the steering radius instead of
-			-- rejecting it solely because the first bush is close. Full sweeping
-			-- still verifies clearance on the incomplete approach to that bush.
-			local ramp=math.max(approach,math.sqrt(6*self.radius*math.abs(offset)))
-			local run=math.max(plateau,ramp+2)
-			local total=run+ramp
-			local path={length=0,working=true,offset=offset}
-			path.goal={x=p.x+fx*total,z=p.z+fz*total,h=p.h}
-			path.build={origin=p,fx=fx,fz=fz,ramp=ramp,run=run,total=total,steps=math.ceil(total/0.25),index=0,radius=self.radius}
-			self.candidates[#self.candidates+1]=path
+	local field=(self.strategy.lands or {}).field or self.vehicle.aiveCurrentField
+	local allowOther=true
+	if field and field.getBit then
+		-- At an exposed border the alternative side is the verge. Swinging
+		-- cutter tips may leave the mask, but the bypass itself stays inward.
+		for _,part in ipairs(self.parts or {}) do
+			if part.label=="workbar" then
+				local b=part.side-preferred*(part.half+.3)
+				if not field.getBit(p.x+part.along*fx-b*fz,p.z+part.along*fz+b*fx) then allowOther=false end
+			end
 		end
 	end
-	-- Increasing lateral displacement, field side first. A harvested crop is
-	-- desirable here; the raised-transfer crop penalty would choose the verge.
+	for i=1,(waitForTraffic and 0 or math.ceil(maxOffset/.25)) do
+		for _,sign in ipairs({preferred,-preferred}) do
+			local offset=i*.25*sign
+			local minimum=math.max(3,math.sqrt(6*self.radius*math.max(math.abs(offset),math.abs(offset-startSide))))
+			for _,scale in ipairs({1,1.3,1.7}) do
+				local ramp=minimum*scale
+				local lead=math.max(0,intervals[1].first-ramp-1)
+				if math.abs(startSide)>.01 or math.abs(startSlope)>.01 then lead=0 end
+				local last=intervals[1].last
+				for j=2,#intervals do
+					-- Rejoin between distant bushes only when a complete second
+					-- departure fits. Nearby bushes retain one continuous deviation.
+					if intervals[j].first>last+2*ramp+4 then break end
+					last=intervals[j].last
+				end
+				local run=math.max(lead+ramp+.5,last+.5)
+				local returnEnd=run+ramp
+				local total=returnEnd+3 -- finish steering before handing back control
+				local path={length=0,working=true,offset=offset}
+				if sign~=preferred and not allowOther then path.invalid=true end
+				path.rank=total+math.abs(offset)*2+(sign~=preferred and .5 or 0)
+				path.goal={x=origin.x+fx*total,z=origin.z+fz*total,h=line.h}
+				path.build={origin=origin,startSide=startSide,startSlope=startSlope,fx=fx,fz=fz,lead=lead,ramp=ramp,run=run,returnEnd=returnEnd,total=total,steps=math.ceil(total/.25),index=0,radius=self.radius}
+				if math.abs(headingDelta)>=1.4 then path.invalid=true;path.build=nil end
+				self.candidates[#self.candidates+1]=path
+			end
+		end
+	end
+	table.sort(self.candidates,function(a,b)return a.rank<b.rank end)
+	local finish=self.candidates[1] and self.candidates[1].build and self.candidates[1].build.total or 0
+	self.goal=self.candidates[1] and self.candidates[1].goal or {x=tx,z=tz,h=line.h}
 	self.candidateIndex=1;self.checkIndex=1;self.bestPath=nil;self.bestCost=nil;self.workCache={};self.candidateCrop=0
-	self:log(string.format("working border bypass: %.1f m ahead; full-header padding=0.20 m; candidates=%d; grouped=%d; return=%.1f m",hit.distance or 0,#self.candidates,grouped,finish))
+	self:log(string.format("working border bypass: %.1f m ahead; full-header padding=%.2f m; candidates=%d; grouped=%d; return=%.1f m; %s",hit.distance or 0,AIVEObstacles.CLEARANCE,#self.candidates,grouped,finish,self:describeHit(hit)))
 end
 function AIVEObstacles:isWorkingPoseOnField(p)
 	local field=(self.strategy.lands or {}).field or self.vehicle.aiveCurrentField
@@ -495,6 +575,7 @@ function AIVEObstacles:captureRoute(p,hit,forward)
 	AIVehicleExtension.setAIImplementsMoveDown(self.vehicle,false,true)
 	self.backAttempts=0
 	self.encounterPose={x=p.x,z=p.z,h=p.h}
+	if AIVECoverage and not self.coverageTask and self.savedLowered then AIVECoverage.record(self,p,6) end
 	end
 	self.hit=hit;self.savedForward=forward
 end
@@ -505,7 +586,8 @@ function AIVEObstacles:startAvoidance(p,hit,tx,tz,forward)
 	end
 	self:captureRoute(p,hit,forward)
 	self.goal=self.goal or {x=tx,z=tz,h=p.h}
-	if not self:tryBackout() then self:beginPlan(p,hit,tx,tz,forward) end
+	if self:beginCorner() then return end
+	if self.precisionCombine or not self:tryBackout() then self:beginPlan(p,hit,tx,tz,forward) end
 end
 function AIVEObstacles:tryForwardRecovery()
 	local turn=self.strategy.currentTurnStrategy
@@ -531,6 +613,7 @@ function AIVEObstacles:startReverseRecovery(p,hit,tx,tz,mf)
 	self:log("reverse manoeuvre blocked; "..self:describeHit(hit))
 	self:captureRoute(p,hit,mf)
 	if not self:tryForwardRecovery() then
+		if self.precisionCombine and self:beginManeuver() then return end
 		self.phase="reverseBlocked";self.retryAt=self.clock+2000
 		self:log("reverse recovery waiting: "..tostring(self.reverseRefusal))
 	end
@@ -584,6 +667,248 @@ function AIVEObstacles:acceptPlan(path)
 	else
 		self:log(string.format("clear detour found: %.1f m; crop exposure=%.2f; rejoining the saved route without advancing its work entry",path.length,path.crop or 0))
 	end
+end
+
+-- Forward-only connectors cannot solve a boxed-in corner. Search the vehicle
+-- pose (including heading and gear) only after those cheap connectors fail.
+function AIVEObstacles:beginCorner()
+	if not AIVECorner or not self.precisionCombine or self.cornerTried or self.coverageTask then return false end
+	local parameters=self.vehicle.acParameters
+	if parameters.inverted or (parameters.upNDown and not parameters.circleLands) then return false end
+	local lands=self.strategy.lands
+	if lands and (lands.active or lands.waitingHandover or lands.finishingPass) then return false end
+	self.cornerTried=true;self.workCache={}
+	self.cornerAnchor=self.cornerAnchor or self:pose()
+	self.maneuverSearch=AIVECorner.new(self,self:pose(),self.hit)
+	self.phase="maneuverPlanning"
+	self:log("checking tight corner: reverse on the cut strip, harvest the wedge, continue along the next edge")
+	return true
+end
+function AIVEObstacles:prepareCornerLeg()
+	local path=self.maneuverPath
+	if not path or not path.corner then return end
+	local q=path[self.maneuverIndex]
+	if not q or self.cornerWork==q.work then return end
+	self.cornerWork=q.work
+	local v=self.vehicle
+	if q.work then
+		v:aiFieldWorkerEndTurn(true)
+		self.workingBypass=true;v.aiveWorkingBypass=true
+		AIVehicleExtension.setAIImplementsMoveDown(v,true,true)
+		self:log("tight corner: cutter down; harvesting the corner wedge")
+	else
+		self.workingBypass=nil;v.aiveWorkingBypass=nil
+		v:aiFieldWorkerStartTurn(true)
+		AIVehicleExtension.setAIImplementsMoveDown(v,false,true)
+		self:log("tight corner: cutter up; checked reverse section")
+	end
+end
+function AIVEObstacles:beginManeuver()
+	if self:beginCorner() then return true end
+	if not AIVEManeuver or not self.vehicle.spec_combine or self.maneuverTried then return false end
+	for _,child in pairs(self.vehicle.childVehicles or {}) do
+		if child~=self.vehicle and child.spec_trailer then return false end
+	end
+	self.maneuverTried=true
+	local p=self:pose()
+	local goals={}
+	local function add(q,escape)
+		for _,failed in ipairs(self.failedManeuverGoals or {}) do
+			if dist(q,failed)<1.5 and math.abs(wrap(q.h-failed.h))<.4 then return end
+		end
+		if not self:isWorkingPoseOnField(q) or self:box(q,false,nil,nil,self.precisionCombine and .04 or .15) then return end
+		if self:frontSweep(q,3) then return end
+		local ahead={x=q.x+3*math.cos(q.h),z=q.z+3*math.sin(q.h),h=q.h}
+		if escape and not self:isWorkingPoseOnField(ahead) then return end
+		q.escape=escape;goals[#goals+1]=q
+	end
+	local lands=self.strategy.lands
+	local fixed=lands and (lands.active or lands.waitingHandover or lands.finishingPass)
+	if self.goal then add({x=self.goal.x,z=self.goal.z,h=self.goal.h},false) end
+	if not fixed then
+		local anchor=self.encounterPose or p
+		for _,r in ipairs({2.5,4,6,math.max(10,self.radius*2),math.max(16,self.radius*3)}) do
+			for i=0,7 do
+				local h=anchor.h+i*math.pi/4
+				for _,yaw in ipairs({h,h+math.pi/2,h-math.pi/2}) do
+					-- Prefer a nearby continuation; large escape rings remain a
+					-- fallback. Remaining crop is explicitly recovered afterwards.
+					add({x=anchor.x+r*math.cos(h),z=anchor.z+r*math.sin(h),h=yaw,penalty=math.max(0,r-4)*2},true)
+				end
+			end
+		end
+	end
+	if #goals==0 then return false end
+	self.maneuverSearch=AIVEManeuver.new(self,p,goals)
+	self.phase="maneuverPlanning"
+	self:log(string.format("searching forward/reverse manoeuvre; reachable field goals=%d",#goals))
+	return true
+end
+
+function AIVEObstacles:retryManeuver(p,reason)
+	if self.coverageTask and AIVECoverage then AIVECoverage.defer(self,self.coverageTask,reason);return end
+	local path=self.maneuverPath
+	if path and path.corner and (self.cornerRetries or 0)<2 then
+		self:log("tight corner: rechecking after "..reason)
+		self.cornerExitHeading=path.goal.h
+		self.cornerRetries=(self.cornerRetries or 0)+1;self.cornerTried=nil
+		self.workingBypass=nil;self.vehicle.aiveWorkingBypass=nil
+		AIVehicleExtension.setAIImplementsMoveDown(self.vehicle,false,true)
+		self.vehicle:aiFieldWorkerStartTurn(true)
+		if self:beginCorner() then return end
+	end
+	self.maneuverRetries=(self.maneuverRetries or 0)+1
+	if path and path.recoveryGoal then
+		self.failedManeuverGoals=self.failedManeuverGoals or {}
+		self.failedManeuverGoals[#self.failedManeuverGoals+1]=path.recoveryGoal
+	end
+	self.maneuverTried=nil;self.maneuverBlockedAt=nil
+	self:log("rechecking a multi-point turn from the actual pose: "..reason)
+	if self.maneuverRetries<=4 and self:beginManeuver() then return end
+	self.phase="blocked";self.retryAt=self.clock+2000
+	self.routeTarget=self.routeTarget or self.goal or {x=p.x+math.cos(p.h)*3,z=p.z+math.sin(p.h)*3,h=p.h}
+	self.goal=self.goal or self.routeTarget
+end
+
+function AIVEObstacles:driveManeuver(p)
+	local v=self.vehicle
+	if self.phase=="maneuverPlanning" then
+		v.aiRescueTimer=v.acDeltaTimeoutStop
+		local path,status=self.maneuverSearch:update()
+		if path then
+			if self.coverageTask and (self.coverageTask.remainingCells or 3)<=2 and (path.length or 0)>4 then
+				AIVECoverage.defer(self,self.coverageTask,"small remnant needs a closer approach");return self:stop(p)
+			end
+			self.maneuverPath=path;self.maneuverIndex=math.min(2,#path);self.maneuverAt=self.clock
+			self.goal=path.goal;self.routeTarget=self.routeTarget or path.goal
+			if self.routeForward==nil then self.routeForward=true end
+			self.phase="maneuver";self.maneuverSearch=nil
+			self:log(string.format("forward/reverse manoeuvre found; points=%d; initial reverse=%.2f m; exit yaw=%.1f deg",#path,path.reverseDistance or 0,math.deg(wrap(path.goal.h-path[1].h))))
+		elseif status then
+			if self.cornerTried and not self.maneuverTried and not self.coverageTask then
+				self:log("corner templates do not fit; trying the general checked manoeuvre search")
+				self.maneuverSearch=nil
+				if self:beginManeuver() then return self:stop(p) end
+			end
+			if self.coverageTask and AIVECoverage then AIVECoverage.defer(self,self.coverageTask,tostring(status));return self:stop(p) end
+			self.maneuverSearch=nil;self.phase="blocked";self.retryAt=self.clock+5000
+			self:log("no collision-free forward/reverse manoeuvre in the local search area: "..tostring(status))
+		end
+		return self:stop(p)
+	end
+	local path=self.maneuverPath
+	local i=self.maneuverIndex
+	local gear=path[i].forward
+	local ending=i
+	while ending<#path and path[ending+1].forward==gear and (not path.corner or path[ending+1].work==path[i].work) do ending=ending+1 end
+	local nearest=i;local best=dist(p,path[i])
+	for j=i+1,math.min(ending,i+14) do
+		local d=dist(p,path[j]);if d<best then nearest=j;best=d end
+	end
+	if nearest>i then self.maneuverIndex=nearest;self.maneuverAt=self.clock;i=nearest end
+	local endDistance=dist(p,path[ending])
+	local endPoint,previous=path[ending],path[math.max(1,ending-1)]
+	local ex,ez=endPoint.x-previous.x,endPoint.z-previous.z
+	local el=math.max(1e-5,math.sqrt(ex*ex+ez*ez))
+	local remaining=((endPoint.x-p.x)*ex+(endPoint.z-p.z)*ez)/el
+	local cross=math.abs(-(p.x-endPoint.x)*ez+(p.z-endPoint.z)*ex)/el
+	local reached=endDistance<.4 or (nearest>=ending-2 and remaining<=.1 and cross<.65)
+	if path.corner then reached=endDistance<.25 or (nearest>=ending-5 and remaining<=.1 and cross<.9) end
+	if path.corner and not gear then
+		-- Finish the checked reverse, rather than consuming its last waypoint
+		-- inside the much wider forward-turn arrival tolerance.
+		reached=remaining<=.12 and cross<.45
+	end
+	if #path==1 then reached=endDistance<.4 end
+	if reached and speed(v)<0.07 then
+		if path.corner and not gear then
+			local first=ending
+			while first>1 and not path[first-1].forward and not path[first-1].work do first=first-1 end
+			self:log(string.format("tight corner: reverse section completed; travelled=%.2f m; remaining=%.2f m",dist(p,path[first]),remaining))
+		end
+		self.maneuverIndex=ending+1;self.maneuverAt=self.clock
+		if ending==#path then
+			if path.corner then
+				self.savedLowered=true;self.workingBypass=nil;v.aiveWorkingBypass=nil
+				self:release(true);self:resetFieldSearch()
+				for _,debt in ipairs(self.coverageDebts or {}) do debt.nextAt=self.clock+15000 end
+				self.nextCoverageAt=self.clock+15000
+				self:log("tight corner completed: wedge harvested, following the next edge")
+				return nil
+			end
+			if path.recoveryGoal and path.recoveryGoal.workPath and AIVECoverage then
+				AIVECoverage.startWork(self,path.recoveryGoal.workPath);return self:stop(p)
+			end
+			local escape=path.escape
+			if AIVECoverage and self.encounterPose then
+				local a=self.encounterPose
+				AIVECoverage.record(self,a,math.max(6,(p.x-a.x)*math.cos(a.h)+(p.z-a.z)*math.sin(a.h)+2))
+			end
+			self:release(not escape)
+			if escape then
+				self:resetFieldSearch()
+			end
+			self:log("forward/reverse manoeuvre completed; resuming fieldwork")
+			if AIVECoverage and AIVECoverage.begin(self) then return self:stop(p) end
+			return nil
+		end
+		return self:stop(p)
+	end
+	local target=path[math.min(ending,i+(path.corner and 16 or 5))]
+	if path.corner and dist(p,target)<3 then
+		local direction=gear and 1 or -1
+		target={x=endPoint.x+direction*4*math.cos(endPoint.h),z=endPoint.z+direction*4*math.sin(endPoint.h),h=endPoint.h}
+	end
+	if self.clock-self.maneuverAt>15000 or best>3 then
+		self:retryManeuver(p,"tracking progress stopped");return self:stop(p)
+	end
+	-- Check the actual off-path pose and the entire next short motion, in
+	-- either gear. A wide front cutter remains at the FRONT while reversing.
+	local checkTarget=target
+	local walked=dist(p,checkTarget)
+	local samples=math.max(1,math.ceil(walked/0.2))
+	if path.corner then samples=0 end
+	local hit
+	if path.corner then
+		-- Follow the same commanded curvature as the native driver. Blending
+		-- position and heading independently toward an ideal waypoint can
+		-- rotate a wide cutter into a tree in the preview although the actual
+		-- arc clears it. Continue checking the full real hull, in both gears.
+		local command={x=target.x,z=target.z}
+		if not gear then
+			local along=(command.x-p.x)*math.cos(p.h)+(command.z-p.z)*math.sin(p.h)
+			command.x=command.x-2*along*math.cos(p.h);command.z=command.z-2*along*math.sin(p.h)
+		end
+		local reserve=(path.initialReserve or 0)*math.max(0,1-dist(p,path[1])/2)
+		hit=self:scan(p,command,gear,math.min(1.5,math.max(.15,endDistance)),{reserve=reserve})
+	end
+	for j=0,samples do
+		local t=samples>0 and j/samples or 0
+		local q={x=p.x+(checkTarget.x-p.x)*t,z=p.z+(checkTarget.z-p.z)*t,h=p.h+wrap(checkTarget.h-p.h)*t}
+		local initial=path.initialReserve or 0
+		local reserve=initial*math.max(0,1-dist(q,path[1])/2)
+		if not path.corner then hit=self:box(q,false,nil,nil,reserve) end
+		if hit then
+			v.aiRescueTimer=v.acDeltaTimeoutStop
+			if not hit.sensorFailed and not AIVEObstacles.mustWait(hit) then
+				self.maneuverBlockedAt=self.maneuverBlockedAt or self.clock
+				if self.clock-self.maneuverBlockedAt>=750 then self:retryManeuver(p,"actual swept clearance changed") end
+			end
+			return self:stop(p)
+		end
+	end
+	self.maneuverBlockedAt=nil
+	v.aiRescueTimer=v.acDeltaTimeoutStop
+	if reached then return self:stop(p) end
+	local tx,tz=target.x,target.z
+	if not gear then
+		local fx,fz=math.cos(p.h),math.sin(p.h)
+		local along=(tx-p.x)*fx+(tz-p.z)*fz
+		tx,tz=tx-2*along*fx,tz-2*along*fz
+	end
+	local x,z,mf=self.strategy:adjustPosition(tx,tz,gear,math.max(.15,endDistance))
+	local limit=path.corner and (gear and 4 or 3) or (gear and 2 or 1.5)
+	return x,z,mf,math.min(limit,math.max(.35,endDistance*1.2)),math.max(path.corner and .35 or .1,endDistance)
 end
 function AIVEObstacles:beginPlan(p,hit,tx,tz,forward)
 	self:captureRoute(p,hit,forward)
@@ -691,7 +1016,11 @@ function AIVEObstacles:release(completed)
 	self.routeTarget=nil;self.routeForward=nil
 	self.backRefusal=nil
 	self.forwardStart=nil;self.recoveryTurn=nil;self.reverseRefusal=nil
-	self.workingBypass=nil;self.vehicle.aiveWorkingBypass=nil
+	self.workingBypass=nil;self.vehicle.aiveWorkingBypass=nil;self.workingLine=nil
+	self.maneuverSearch=nil;self.maneuverPath=nil;self.maneuverTried=nil
+	self.maneuverRetries=nil;self.failedManeuverGoals=nil;self.maneuverBlockedAt=nil
+	self.cornerTried=nil;self.cornerRetries=nil;self.cornerWork=nil
+	self.cornerAnchor=nil;self.cornerExitHeading=nil
 end
 function AIVEObstacles:delete()
 	AIVEObstacles.controllers[self.vehicle]=nil
@@ -727,12 +1056,22 @@ function AIVEObstacles:buildWorkingCandidate(path)
         if b.index>b.steps then path.build=nil;return true end
         local u=b.total*b.index/b.steps
         local t,reverse
-        if u<b.ramp then t=u/b.ramp
-        elseif u>b.run then t=(b.total-u)/b.ramp;reverse=true
+        if u<(b.lead or 0) then t=0
+        elseif u<(b.lead or 0)+b.ramp then t=(u-(b.lead or 0))/b.ramp
+        elseif u>(b.returnEnd or b.total) then t=0
+        elseif u>b.run then t=((b.returnEnd or b.total)-u)/b.ramp;reverse=true
         else t=1 end
         local lateral=path.offset*t*t*t*(10+t*(-15+6*t))
         local slope=path.offset*30*t*t*(1-t)*(1-t)/b.ramp*(reverse and -1 or 1)
         local bend=path.offset*60*t*(1-t)*(1-2*t)/(b.ramp*b.ramp)
+        if u<(b.lead or 0)+b.ramp and ((b.startSide or 0)~=0 or (b.startSlope or 0)~=0) then
+            local y0,m0=b.startSide or 0,(b.startSlope or 0)*b.ramp
+            local delta=path.offset-y0
+            local c3,c4,c5=10*delta-6*m0,-15*delta+8*m0,6*delta-3*m0
+            lateral=y0+m0*t+c3*t^3+c4*t^4+c5*t^5
+            slope=(m0+3*c3*t*t+4*c4*t^3+5*c5*t^4)/b.ramp
+            bend=(6*c3*t+12*c4*t*t+20*c5*t^3)/(b.ramp*b.ramp)
+        end
         if math.abs(bend)/(1+slope*slope)^1.5>1/b.radius then path.invalid=true;path.build=nil;return true end
         local p=b.origin
         local q={x=p.x+b.fx*u-b.fz*lateral,z=p.z+b.fz*u+b.fx*lateral,h=p.h+math.atan(slope)}
@@ -746,7 +1085,10 @@ function AIVEObstacles:checkPlan()
 		local path=self.candidates[self.candidateIndex]
 		if path==nil then
 			if self.bestPath then self:acceptPlan(self.bestPath);return end
+			if self.workingBypass and self:escalateWorkingBypass() then return end
+			if self.precisionCombine and self:beginManeuver() then return end
 			if not self.workingBypass and self:tryBackout() then return end
+			if not self.workingBypass and self:beginManeuver() then return end
 			self.phase="blocked";self.retryAt=self.clock+2000
 			if self.clock>=(self.nextBlockedLog or 0) then
 				self.nextBlockedLog=self.clock+15000
@@ -760,12 +1102,21 @@ function AIVEObstacles:checkPlan()
 			return
 		end
 		local p=path[self.checkIndex]
-		if self:box(p,false) or (self.workingBypass and not self:isWorkingPoseOnField(p)) then
+		-- Leave room for tracking error along the planned path, while allowing
+		-- a machine already in a tight gap to start at the actual clearance.
+		local reserve=AIVEObstacles.CLEARANCE*math.min(1,dist(path[1],p)/2)
+		if self:box(p,false,nil,nil,reserve) or (self.workingBypass and not self:isWorkingPoseOnField(p)) then
 			self.candidateIndex=self.candidateIndex+1;self.checkIndex=1;self.candidateCrop=0
 		else
 			if self.workingBypass then
 				self.checkIndex=self.checkIndex+1
-				if self.checkIndex>#path then self:acceptPlan(path);return end
+				if self.checkIndex>#path then
+					local cost=path.length+math.abs(path.offset)*2
+					if not self.bestCost or cost<self.bestCost then self.bestPath=path;self.bestCost=cost end
+					self.candidateIndex=self.candidateIndex+1;self.checkIndex=1
+					local nextPath=self.candidates[self.candidateIndex]
+					if not nextPath or nextPath.rank>self.bestCost+1 then self:acceptPlan(self.bestPath);return end
+				end
 			else
 			local previous=path[math.max(1,self.checkIndex-1)]
 			self.candidateCrop=self.candidateCrop+self:cropAtPose(p)*dist(previous,p)
@@ -802,13 +1153,23 @@ function AIVEObstacles:filter(dt,tx,tz,mf,maxSpeed,stopDistance)
 	-- Distance is measured from the inflated FULL implement footprint.
 	-- Do not intercept a normal headland turn for objects 20-40 m away.
 	local working=self:canWorkAround(forward)
+	if working and AIVECoverage and self.clock>=(self.nextCoverageAt or 0) then
+		self.nextCoverageAt=self.clock+5000
+		if AIVECoverage.begin(self) then return self:stop(p,mf) end
+	end
 	local range=working and math.max(14,2*self.radius+3) or 3
 	if not forward or self.clock>=self.nextProbe then
-		self.lastHit=self:scan(p,{x=tx,z=tz},forward,range)
+		-- The drive target is expressed from the game's AI steering node;
+		-- all collision parts use AIVE's reference node. Undo that conversion
+		-- before deriving curvature, especially for rear-steered combines.
+		local sx,sz=tx,tz
+		if self.strategy.adjustPosition then sx,sz=self.strategy:adjustPosition(tx,tz,forward,stopDistance,true) end
+		local options=working and self.precisionCombine and {maxYaw=math.rad(45)} or nil
+		self.lastHit=self:scan(p,{x=sx,z=sz},forward,range,options)
 		self.nextProbe=self.clock+120
 	end
 	local hit=self.lastHit
-	if hit==nil then self.waitSince=nil;self.waitNode=nil;return tx,tz,mf,maxSpeed,stopDistance end
+	if hit==nil then self.waitSince=nil;self.waitNode=nil;self.cornerWaitAt=nil;return tx,tz,mf,maxSpeed,stopDistance end
 	if hit.sensorFailed or AIVEObstacles.mustWait(hit) then
 		self.vehicle.aiRescueTimer=self.vehicle.acDeltaTimeoutStop
 		if not hit.sensorFailed then
@@ -822,28 +1183,67 @@ function AIVEObstacles:filter(dt,tx,tz,mf,maxSpeed,stopDistance)
 		return self:stop(p,mf)
 	end
 	self.waitNode=nil
-	if working and (hit.distance or 0)>3 then
-		local projected={x=p.x+math.cos(p.h)*hit.distance,z=p.z+math.sin(p.h)*hit.distance,h=p.h}
+	if working then
+		local projected=hit.pose or {x=p.x+math.cos(p.h)*(hit.distance or 0),z=p.z+math.sin(p.h)*(hit.distance or 0),h=p.h}
 		-- Let the normal corner start before a tree BEYOND the field. The
-		-- longer working preview must not freeze an otherwise clear headland.
-		if not self:isWorkingPoseOnField(projected) then return tx,tz,mf,maxSpeed,stopDistance end
+		-- collision pose follows the scanned CURVE, not the initial heading.
+		-- Taking obstacle control here freezes the native end-of-field timer
+		-- and searches for a working bypass whose rejoin is outside the field.
+		if not self:isWorkingPoseOnField(projected) then
+			if (hit.distance or 0)>3 then self.cornerWaitAt=nil;return tx,tz,mf,maxSpeed,stopDistance end
+			-- Keep physical braking, but let the native corner/search state tick.
+			-- If it cannot produce a turn while stopped, explicitly recover;
+			-- otherwise this "clear" phase can brake forever without replanning.
+			self.cornerWaitAt=self.cornerWaitAt or self.clock
+			if self.clock-self.cornerWaitAt>=750 then
+				self.routeTarget={x=tx,z=tz};self.routeForward=mf
+				self:captureRoute(p,hit,mf);self.goal=nil
+				if not self:beginManeuver() then self:beginPlan(p,hit,tx,tz,mf) end
+				self.cornerWaitAt=nil
+			end
+			return self:stop(p,mf)
+		end
 	end
 	-- A working combine needs enough lead distance to bend around a tree
 	-- without a reverse leg. Other vehicles/people retain the short wait zone.
 	if working and forward then
+		local distantTree=false
+		local warning=math.max(3,self:reverseClearance()+.5)
+		if (hit.distance or 0)>warning and hit.x and hit.z and type(getCollisionFilterGroup)=="function" then
+			local side=math.abs(-(hit.x-p.x)*math.sin(p.h)+(hit.z-p.z)*math.cos(p.h))
+			local turning=hit.pose~=nil and math.abs(wrap(hit.pose.h-p.h))>math.rad(10)
+			-- Edge steering can change before a distant side or curved tree prediction.
+			distantTree=(side>self.half or turning) and flagSet(getCollisionFilterGroup(hit.node),(CollisionFlag or {}).TREE or 2048)
+		end
+		-- A long curved preview is advisory when the interrupted work strip
+		-- itself is clear. Freezing the native steering here would manufacture
+		-- a straight bypass of a tree that was never on that straight strip
+		-- (grouped=0), replacing a perfectly usable field-edge turn. A near
+		-- collision still takes control; straight-row bushes retain early
+		-- detection so the working S-curve has room to fit.
+		if self.precisionCombine and (hit.distance or 0)>3 and (distantTree or not self:frontSweep(p,range)) then
+			self.waitSince=nil
+			if self.clock>=(self.nextCurveLog or 0) then
+				self.nextCurveLog=self.clock+15000
+				self:log("distant edge forecast is advisory; keeping native edge steering")
+			end
+			return tx,tz,mf,math.min(maxSpeed,8),stopDistance
+		end
 		self:beginWorkingBypass(p,hit,tx,tz)
 		return self:stop(p,mf)
 	end
-	if not forward and (hit.distance or 0)>0.75 then
+	local reverseClearance=self:reverseClearance()
+	if not forward and (hit.distance or 0)>reverseClearance then
 		-- Keep the 3 m warning corridor, but creep towards a fixed obstacle
 		-- rather than ending the reverse leg at its first distant detection.
 		-- Clearance is from the padded full rig, not its reference node.
-		local remaining=hit.distance-0.75
+		local remaining=hit.distance-reverseClearance
 		self.waitSince=nil
 		self.vehicle.aiRescueTimer=self.vehicle.acDeltaTimeoutStop
 		-- Keep a nonzero rolling horizon; an almost-zero stop distance can
 		-- make the engine brake before reaching the clearance threshold.
-		return tx,tz,mf,math.min(maxSpeed,1.5),math.min(stopDistance or remaining,math.max(0.5,remaining))
+		local creep=self.precisionCombine and math.min(1.5,math.max(.45,remaining*2)) or 1.5
+		return tx,tz,mf,math.min(maxSpeed,creep),math.min(stopDistance or remaining,math.max(0.2,remaining))
 	end
 	self.waitSince=self.waitSince or self.clock
 	if forward and self:mayPass(hit) and self.clock-self.waitSince>=400 then
@@ -862,6 +1262,11 @@ function AIVEObstacles:drive(dt)
 	self.clock=self.clock+dt
 	if not self:isEnabled() then self:release();return nil end
 	self:dimensions()
+	if self.phase=="coverageScan" then
+		v.aiRescueTimer=v.acDeltaTimeoutStop
+		AIVECoverage.update(self);return self:stop(p)
+	end
+	if self.phase=="maneuver" then self:prepareCornerLeg() end
 	if self.phase=="waiting" then
 		v.aiRescueTimer=v.acDeltaTimeoutStop
 		local forward=self.waitForward~=v.acParameters.inverted
@@ -872,8 +1277,12 @@ function AIVEObstacles:drive(dt)
 		return nil
 	end
 	if type(v.getCanAIFieldWorkerContinueWork)=="function" then
-		local allowed,stop,reason=v:getCanAIFieldWorkerContinueWork(true)
+		-- A working deviation keeps the cutter down and has not raised turn
+		-- events. Ask the native implement check about WORK, not a headland turn.
+		local allowed,stop,reason=v:getCanAIFieldWorkerContinueWork(not self.workingBypass)
 		if not allowed then
+			-- Unloading/implement preparation is not an obstacle timeout.
+			self.clock=self.clock-dt
 			local key=tostring(stop)..":"..tostring(reason)
 			if self.continueBlock~=key then
 				self.continueBlock=key
@@ -887,13 +1296,18 @@ function AIVEObstacles:drive(dt)
 	-- A person/helper entering a manoeuvre corridor always has waiting
 	-- priority. Never convert that encounter into another reverse or bypass.
 	local nearby=self:scan(p,{x=p.x+5*math.cos(p.h),z=p.z+5*math.sin(p.h)},true,3)
-	if nearby and (nearby.sensorFailed or AIVEObstacles.mustWait(nearby)) then return self:stop(p) end
+	if nearby and (nearby.sensorFailed or AIVEObstacles.mustWait(nearby)) then
+		self.clock=self.clock-dt
+		return self:stop(p)
+	end
 	if self.phase=="reverseBlocked" then
 		if self.clock>=self.retryAt then
 			self.retryAt=self.clock+2000
 			local hit=self:scan(p,self.routeTarget,false,3)
 			if not hit then self:release();return nil end
-			if not hit.sensorFailed and not AIVEObstacles.mustWait(hit) then self:tryForwardRecovery() end
+			if not hit.sensorFailed and not AIVEObstacles.mustWait(hit) then
+				if not self:tryForwardRecovery() and self.precisionCombine then self:beginManeuver() end
+			end
 		end
 		return self:stop(p)
 	end
@@ -920,6 +1334,7 @@ function AIVEObstacles:drive(dt)
 		local tx,tz,mf=self.strategy:adjustPosition(b.x+fx*(self.forwardDistance+4),b.z+fz*(self.forwardDistance+4),true,remaining)
 		return tx,tz,mf,3,math.max(0.3,remaining)
 	end
+	if self.phase=="maneuverPlanning" or self.phase=="maneuver" then return self:driveManeuver(p) end
 	if self.phase=="planning" then self:checkPlan();return self:stop(p) end
 	if self.phase=="backing" then
 		local b=self.backStart
@@ -941,6 +1356,9 @@ function AIVEObstacles:drive(dt)
 		return tx,tz,mf,math.min(3,AutoSteeringEngine.getMaxSpeed(v,dt,1,true,false,4,false,1)),math.max(0.5,remaining)
 	end
 	if self.phase=="blocked" then
+		if self.coverageTask and AIVECoverage then
+			AIVECoverage.defer(self,self.coverageTask,"cleanup needs a different approach");return self:stop(p)
+		end
 		if self.workingBypass then
 			if self.clock-self.blockedAt>45000 then v:stopCurrentAIJob(AIMessageErrorBlockedByObject.new());return self:stop(p) end
 			if self.clock>=self.retryAt then
@@ -956,6 +1374,10 @@ function AIVEObstacles:drive(dt)
 		end
 		if self.clock>=self.retryAt then
 			self.retryAt=self.clock+2000
+			v.aiRescueTimer=v.acDeltaTimeoutStop
+			local recoveryGoal=self.goal or (self.maneuverPath and self.maneuverPath.goal) or self.routeTarget
+			if not recoveryGoal then self:release(false);self:resetFieldSearch();return nil end
+			self.goal=recoveryGoal;self.routeTarget=self.routeTarget or recoveryGoal
 			local forward=self.routeForward~=self.vehicle.acParameters.inverted
 			local hit=self:scan(p,self.routeTarget or self.goal,forward,3)
 			if hit==nil then
@@ -982,31 +1404,78 @@ function AIVEObstacles:drive(dt)
 		local d=dist(p,path[i]);if d<best then nearest,best=i,d end
 	end
 	self.pathIndex=nearest
-	if nearest>self.progressIndex then self.progressIndex=nearest;self.progressAt=self.clock end
+	if nearest>self.progressIndex then
+		self.progressIndex=nearest;self.progressAt=self.clock
+		if self.workingBypass then self.blockedAt=self.clock end
+	end
 	if self.clock-self.progressAt>20000 then self.phase="blocked";self.retryAt=self.clock+2000;return self:stop(p) end
 	local targetIndex=math.min(#path,nearest+3)
 	local target=path[targetIndex]
 	local fx,fz=math.cos(self.goal.h),math.sin(self.goal.h)
 	local along=(p.x-self.goal.x)*fx+(p.z-self.goal.z)*fz
 	local side=-(p.x-self.goal.x)*fz+(p.z-self.goal.z)*fx
-	if nearest>=#path-6 then target={x=self.goal.x+fx*5,z=self.goal.z+fz*5} end
+	if self.coverageTask then
+		-- A target less than a metre ahead can sit behind the native steering
+		-- node on a combine. Track the line with a proper lookahead, but STOP
+		-- at its end: the steering target is not a permission to drive past it.
+		target={x=self.goal.x+fx*(along+4),z=self.goal.z+fz*(along+4)}
+		if along>=-.2 then
+			AIVECoverage.finished(self);self:release(true);self:resetFieldSearch()
+			self:log("cleanup strip ended; checking remaining crop before any further approach")
+			return self:stop(p)
+		end
+	elseif nearest>=#path-6 then
+		target={x=self.goal.x+fx*5,z=self.goal.z+fz*5}
+	end
+	if self.workingBypass and not self.coverageTask and along>=0 then
+		-- Native steering cannot chase a waypoint that has already passed
+		-- behind the steering node. Hand the end plane back to border search;
+		-- any real missed crop is checked separately, never by driving a loop.
+		if AIVECoverage and self.encounterPose then
+			local a=self.encounterPose
+			AIVECoverage.record(self,a,math.max(6,(p.x-a.x)*math.cos(a.h)+(p.z-a.z)*math.sin(a.h)))
+		end
+		self:release(true);self:resetFieldSearch();self.nextCoverageAt=self.clock+15000
+		self:log("working bypass end reached; continuing along the actual crop edge")
+		return self:stop(p)
+	end
 	local finalSide=self.workingBypass and 0.45 or 1.2
-	local finalHeading=self.workingBypass and 0.045 or 0.28
+	local finalHeading=self.coverageTask and .12 or (self.workingBypass and 0.045 or 0.28)
 	if nearest>=#path-6 and along>=(self.workingBypass and -0.25 or -1) and math.abs(side)<finalSide and math.abs(wrap(p.h-self.goal.h))<finalHeading then
 		self:log("detour completed; continuing the saved working route")
-		self:release(true);return nil
+		local cleanup=self.coverageTask~=nil
+		if cleanup and AIVECoverage then AIVECoverage.finished(self) end
+		if not cleanup and AIVECoverage and self.encounterPose then
+			local a=self.encounterPose
+			AIVECoverage.record(self,a,math.max(6,(p.x-a.x)*math.cos(a.h)+(p.z-a.z)*math.sin(a.h)+(self.workingBypass and 0 or 2)))
+		end
+		self:release(true)
+		if cleanup then self:resetFieldSearch() end
+		return nil
 	end
 	if self.clock>=self.nextProbe then
 		-- Follow the validated route through bends. Extrapolating one constant
 		-- steering arc here can swing back into the very post we are passing.
 		self.lastHit=self:scanPath(p,path,nearest,3)
-		if not self.lastHit and nearest>=#path-6 then self.lastHit=self:scan(p,target,true,3) end
+		if not self.lastHit and self.coverageTask then self.lastHit=self:scan(p,target,true,math.min(3,math.max(0,-along))) end
+		if not self.lastHit and nearest>=#path-6 and not self.coverageTask then self.lastHit=self:scan(p,target,true,3) end
 		self.nextProbe=self.clock+120
 	end
 	if self.lastHit then
 		self.detourWaitSince=self.detourWaitSince or self.clock
 		if self.workingBypass then
-			if self.clock-self.detourWaitSince>45000 then v:stopCurrentAIJob(AIMessageErrorBlockedByObject.new()) end
+			if self.clock-(self.blockedAt or self.detourWaitSince)>45000 then
+				v:stopCurrentAIJob(AIMessageErrorBlockedByObject.new());return self:stop(p)
+			end
+			if not self.lastHit.sensorFailed and self.clock-self.detourWaitSince>=400 and self:mayPass(self.lastHit) then
+				if self.coverageTask and AIVECoverage then
+					AIVECoverage.defer(self,self.coverageTask,"new obstacle on cleanup strip");return self:stop(p)
+				end
+				local since=self.blockedAt
+				local destination=self.routeTarget or self.goal
+				self:beginWorkingBypass(p,self.lastHit,destination.x,destination.z)
+				self.blockedAt=since;self.detourWaitSince=nil
+			end
 		elseif not self.lastHit.sensorFailed and self.clock-self.detourWaitSince>=400 and self:mayPass(self.lastHit) then
 			self:startAvoidance(p,self.lastHit,self.goal.x,self.goal.z,true)
 			self.detourWaitSince=nil
@@ -1017,5 +1486,6 @@ function AIVEObstacles:drive(dt)
 	v.aiRescueTimer=v.acDeltaTimeoutStop
 	if not self.workingBypass then v:aiFieldWorkerTurnProgress(nearest/math.max(1,#path),true) end
 	local tx,tz,mf=self.strategy:adjustPosition(target.x,target.z,true,10)
-	return tx,tz,mf,math.min(self.workingBypass and 8 or 5,AutoSteeringEngine.getMaxSpeed(v,dt,1,true,true,self.workingBypass and 2 or 4,false,1)),10
+	local limit=self.coverageTask and 3 or (self.workingBypass and 8 or 5)
+	return tx,tz,mf,math.min(limit,AutoSteeringEngine.getMaxSpeed(v,dt,1,true,true,self.workingBypass and 2 or 4,false,1)),10
 end

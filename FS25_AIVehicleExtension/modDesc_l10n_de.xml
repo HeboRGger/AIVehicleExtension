@@ -12,7 +12,7 @@
 		<text name="AIVE_WORKER_NOT_READY" text="Auf diesem Fahrzeug kann derzeit kein Helfer gestartet werden."/>
         <text name="AIVE_JOB_SETTING" text="Weitere AIVE-Einstellung"/>
         <text name="AIVE_JOB_VALUE" text="Einstellungswert"/>
-        <text name="AIVE_JOB_CHECK_PREPARATION" text="AIVE: Feldziel, Saatgut, Duenger und Aussaatzeit pruefen."/>
+        <text name="AIVE_JOB_CHECK_PREPARATION" text="AIVE: Feldziel, Saatgut, Dünger und Aussaatzeit prüfen." />
         <text name="AIVE_JOB_ENTER_FIELD" text="Feldeinfahrt"/>
         <text name="AIVE_JOB_TITLE" text="Feldarbeit + AIVE"/>
 		<!-- AI Vehicle helpPanel text -->
@@ -20,7 +20,7 @@
 		<text name="AIVE_ENABLED"                  text="Alternativer Helfer"/>
 		<text name="AIVE_START"                    text="Alternativer Helfer [an]"/>
 		<text name="AIVE_STOP"                     text="Alternativer Helfer [aus]"/>
-		<text name="AIVE_WORKWIDTH"                text="Arbeitsbreite:"/>
+		<text name="AIVE_WORKWIDTH" text="Arbeitsbreite:" />
 		<text name="AIVE_ACTIVESIDE"               text="Aktive Seite"/>
 		<text name="AIVE_ACTIVESIDELEFT"           text="Links"/>
 		<text name="AIVE_ACTIVESIDERIGHT"          text="Rechts"/>
@@ -33,7 +33,7 @@
 		<text name="AIVE_CONTINUE"                 text="Weiter fahren"/>
 		<text name="AIVE_RAISE"                    text="Alle Geräte heben/senken"/>
 		<text name="AIVE_MAXCIRCLES"               text="Wechsel von Kreisfahrt zu auf/ab nach"/>
-		<text name="AIVE_NOSPRAYER"                text="Unterfussdüngung unterdrücken"/>
+		<text name="AIVE_NOSPRAYER" text="Düngung beim Säen deaktivieren" />
 
 		<text name="AIVE_WAIT_FOR_PIPE"            text="Zum Abtanken anhalten"/>
 		<text name="AIVE_COLLISIONTRIGGERMODE_ON"  text="Abstandshalter ist AN "/>
@@ -61,8 +61,8 @@
 		<text name="AIVE_NEXTTURNSTAGE"            text="Springe zum nächsten Schritt"/>
 		<text name="AIVE_CP_ON"                    text="Courseplay-Modus [aus]"/>
 		<text name="AIVE_CP_OFF"                   text="Courseplay-Modus [an]"/>
-		<text name="AIVE_STEER_ON"                 text="Autom. Lenkung [aus]"/>
-		<text name="AIVE_STEER_OFF"                text="Autom. Lenkung [an]"/>
+		<text name="AIVE_STEER_ON" text="Automatische Kantenlenkung [aus]" />
+		<text name="AIVE_STEER_OFF" text="Automatische Kantenlenkung [ein]" />
 		<text name="AIVE_HEADLAND_ON"              text="Vorgewende [aus]"/>
 		<text name="AIVE_HEADLAND_OFF"             text="Vorgewende [an]"/>
 		<text name="AIVE_FRONT_PACKER_ON"          text="Front Packer [an]"/>
@@ -75,7 +75,7 @@
 		<text name="AIVE_HIRE_OFF"                 text="Saatgutverbrauch [an]"/>
 		<text name="AIVE_HEADLAND"                 text="Vorgewende"/>
 		<text name="AIVE_TURN_MODE"                text="Form des Wendemanövers (auf/ab)"/>
-		<text name="AIVE_TURN_MODEC"               text="Form des Wendemanövers (Kreis)"/>
+		<text name="AIVE_TURN_MODEC" text="Wendemanöver an Feldecken" />
 		<text name="AIVE_TURN_MODE_"               text=""/>
 		<text name="AIVE_TURN_MODE_O"              text="Wende in Form eines O"/>
 		<text name="AIVE_TURN_MODE_A"              text="Rückwärts mit Kurve"/>
@@ -92,7 +92,7 @@
 		<text name="AIVE_STEER_LOWER"              text="Geräte runter/an"/>
 		<text name="AIVE_TRACE"                    text="Spur anzeigen"/>
 		<text name="AIVE_MAGIC"                    text="Feld neu erkennen"/>
-		<text name="AIVE_USE_AI_FIELD"             text="Nur zusammenhängdes Feld erkennen"/>
+		<text name="AIVE_USE_AI_FIELD" text="Nur zusammenhängendes Feld erkennen" />
 		<text name="AIVE_FIELD_W"                  text="Feld Erkennung läuft"/>
 		<text name="AIVE_FIELD_E"                  text="Feld Erkennung ist abgebrochen"/>
 		<text name="AIVE_PRECISION"                text="Präzision des alternativen Helfers"/>
@@ -110,7 +110,32 @@
 		<text name="input_AIVE_PAUSE"              text="Alternativer Helfer: Pause"/>
 		<text name="input_AIVE_START_AIVE"         text="Alternativer Helfer: Helfereinstellungen"/>
 		<text name="input_AIVE_NEXT_WORKER"        text="Alternativer Helfer: Zum nächsten Helfer springen"/>
-		<text name="AIVE_FIELD_GROUP" text="Shared field group (up to 4)"/>
-	<text name="AIVE_FIELD_GROUP_MODE" text="For a field group select Circle with lands and forward driving."/>
-</texts>
+		<text name="AIVE_FIELD_GROUP" text="Gemeinsame Feldgruppe (bis zu 4 Helfer)" />
+	<text name="AIVE_FIELD_GROUP_MODE" text="Für eine Feldgruppe Kreisfahrt mit Beeten und Vorwärtsfahrt auswählen." />
+		<text name="AIVE_JOB_TRAVEL" text="Fahrt zum Feld" />
+			<text name="AIVE_JOB_TRAVEL_AUTO" text="Automatisch: Straßennetz / Splines / GIANTS" />
+			<text name="AIVE_JOB_TRAVEL_NATIVE" text="Straßen der Spiel-KI (GIANTS)" />
+			<text name="AIVE_JOB_TRAVEL_AD" text="AutoDrive-Straßennetz" />
+			<text name="AIVE_JOB_TRAVEL_MAP" text="Kartenstraßen (AIVE)" />
+			<text name="AIVE_JOB_MAP_MISSING" text="AIVE: Auf dieser Karte sind keine Straßensplines geladen. Ein verbundenes AutoDrive-Straßennetz oder GIANTS-Straßen sind erforderlich." />
+			<text name="AIVE_JOB_AD_MISSING" text="AIVE: Für diese Fahrt muss ein AutoDrive-Straßennetz geladen sein. Spielstraßen auswählen oder AutoDrive-Kurse für diese Karte laden." />
+			<text name="AIVE_CIRCLE_LANDS" text="Kreisfahrt mit Beeten" />
+			<text name="AIVE_LANDS_SWITCH_WIDTH" text="Restbreite für Beetarbeit" />
+			<text name="AIVE_LANDS_THRESHOLD" text="Nach einer vollständigen Umrundung bei etwa 80 m Restbreite von gegenüberliegenden Seiten nach innen arbeiten" />
+			<text name="AIVE_EXTENDED_SETTINGS" text="AIVE — erweiterte Einstellungen" />
+			<text name="AIVE_ANGLE_FACTOR" text="Lenktoleranz" />
+			<text name="AIVE_REVERSE_DRIVING" text="Arbeiten in Rückwärtsfahrt" />
+			<text name="AIVE_TURNLOW" text="Gerät beim Wenden abgesenkt lassen" />
+			<text name="AIVE_COLLISION" text="Kollisionserkennung" />
+			<text name="AIVE_QUICK_HUD" text="Schnellbedienung anzeigen" />
+			<text name="AIVE_SHOW_EDGE" text="Feldkante anzeigen" />
+			<text name="AIVE_SMALL_HEADLAND" text="Klein" />
+			<text name="AIVE_BIG_HEADLAND" text="Groß" />
+			<text name="AIVE_ON" text="Ein" />
+			<text name="AIVE_OFF" text="Aus" />
+			<text name="AIVE_DEFAULTS" text="Standardwerte" />
+			<text name="AIVE_CLOSE" text="Schließen" />
+			<text name="AIVE_SETTINGS_HINT" text="Pfeile übernehmen Änderungen sofort. Die Anzeige der Feldkante ist nur eine visuelle Hilfe." />
+			<text name="AIVE_SETTING_LOCKED" text="Helfer vor dem Ändern dieser Einstellung stoppen. Pausieren ist nur bei aktivem AIVE-Helfer möglich." />
+	</texts>
 </l10n>
